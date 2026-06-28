@@ -38,27 +38,66 @@
   </header>
   <main><div class="grid" id="grid"></div></main>
   <script>
+    // Cards are built once and updated in place so text selection survives the
+    // 2s refresh (rebuilding innerHTML would clear any selection).
+    const cards = {};
+    const setText = (el, t) => { if (el.textContent !== t) el.textContent = t; };
+    const fmt = v => typeof v === 'boolean' ? (v ? 'on' : 'off') : String(v);
+
     async function tick() {
       try {
         const info = await (await fetch('/api/info')).json();
-        document.getElementById('bridge').textContent = info.bridge;
-        document.getElementById('pin').textContent = info.pin;
-        document.getElementById('count').textContent = info.accessories + ' accessories';
-        document.getElementById('dot').className = 'dot' + (info.healthy ? '' : ' bad');
+        setText(document.getElementById('bridge'), info.bridge);
+        setText(document.getElementById('pin'), info.pin);
+        setText(document.getElementById('count'), info.accessories + ' accessories');
+        const dot = document.getElementById('dot');
+        const cls = 'dot' + (info.healthy ? '' : ' bad');
+        if (dot.className !== cls) dot.className = cls;
 
         const devs = await (await fetch('/api/devices')).json();
         const grid = document.getElementById('grid');
-        grid.innerHTML = devs.map(d => {
-          const keys = Object.keys(d.state || {});
-          const rows = keys.length
-            ? keys.map(k => `<div class="kv"><span>${k.replace(/_/g,' ')}</span><span>${fmt(d.state[k])}</span></div>`).join('')
-            : '<div class="empty">waiting for data…</div>';
-          return `<div class="card"><div class="name">${esc(d.name)}</div><div class="type">${esc(d.type)}</div>${rows}</div>`;
-        }).join('');
+        const seen = new Set();
+
+        for (const d of devs) {
+          const key = String(d.aid);
+          seen.add(key);
+          let c = cards[key];
+          if (!c) {
+            const root = document.createElement('div'); root.className = 'card';
+            const name = document.createElement('div'); name.className = 'name'; name.textContent = d.name;
+            const type = document.createElement('div'); type.className = 'type'; type.textContent = d.type;
+            const body = document.createElement('div');
+            root.append(name, type, body);
+            grid.appendChild(root);
+            c = cards[key] = { root, body, rows: {}, empty: null };
+          }
+          const state = d.state || {};
+          const keys = Object.keys(state);
+          if (keys.length === 0) {
+            if (!c.empty) { c.empty = document.createElement('div'); c.empty.className = 'empty'; c.empty.textContent = 'waiting for data…'; c.body.appendChild(c.empty); }
+          } else {
+            if (c.empty) { c.empty.remove(); c.empty = null; }
+            for (const k of keys) {
+              let vv = c.rows[k];
+              if (!vv) {
+                const r = document.createElement('div'); r.className = 'kv';
+                const kk = document.createElement('span'); kk.textContent = k.replace(/_/g, ' ');
+                vv = document.createElement('span');
+                r.append(kk, vv); c.body.appendChild(r);
+                c.rows[k] = vv;
+              }
+              setText(vv, fmt(state[k]));
+            }
+            for (const k of Object.keys(c.rows)) {
+              if (!(k in state)) { c.rows[k].parentElement.remove(); delete c.rows[k]; }
+            }
+          }
+        }
+        for (const key of Object.keys(cards)) {
+          if (!seen.has(key)) { cards[key].root.remove(); delete cards[key]; }
+        }
       } catch (e) { /* keep last state on transient errors */ }
     }
-    function fmt(v) { return typeof v === 'boolean' ? (v ? 'on' : 'off') : esc(String(v)); }
-    function esc(s) { return s.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
     tick(); setInterval(tick, 2000);
   </script>
 </body>
