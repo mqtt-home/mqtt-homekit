@@ -87,7 +87,7 @@ func (b *Bridge) buildDevice(acc config.Accessory) (*Device, error) {
 
 	case "contact":
 		a := accessory.NewContactSensor(info)
-		b.readBool(d, "contact", acc.Source("contact"), func(open bool) {
+		b.readBoolLabeled(d, "contact", acc.Source("contact"), "open", "closed", func(open bool) {
 			state := characteristic.ContactSensorStateContactDetected
 			if open {
 				state = characteristic.ContactSensorStateContactNotDetected
@@ -98,7 +98,7 @@ func (b *Bridge) buildDevice(acc config.Accessory) (*Device, error) {
 
 	case "motion":
 		a := accessory.NewMotionSensor(info)
-		b.readBool(d, "motion", acc.Source("motion"), func(v bool) {
+		b.readBoolLabeled(d, "motion", acc.Source("motion"), "detected", "clear", func(v bool) {
 			a.MotionSensor.MotionDetected.SetValue(v)
 		})
 		d.a = a.A
@@ -187,6 +187,24 @@ func (b *Bridge) readBool(d *Device, name string, src config.ValueSource, apply 
 		v := parseBool(src, extract(payload, src.Path))
 		apply(v)
 		d.record(name, v)
+		b.broadcast(d)
+	})
+}
+
+// readBoolLabeled is readBool but records a human-readable state (e.g.
+// "open"/"closed") instead of a bare on/off, for clearer sensor display.
+func (b *Bridge) readBoolLabeled(d *Device, name string, src config.ValueSource, trueLabel, falseLabel string, apply func(bool)) {
+	if src.Topic == "" {
+		return
+	}
+	b.subscribe(src.Topic, func(payload []byte) {
+		v := parseBool(src, extract(payload, src.Path))
+		apply(v)
+		if v {
+			d.record(name, trueLabel)
+		} else {
+			d.record(name, falseLabel)
+		}
 		b.broadcast(d)
 	})
 }

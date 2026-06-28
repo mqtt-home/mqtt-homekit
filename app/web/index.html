@@ -23,13 +23,18 @@
     .empty { color:var(--muted); font-size:13px; }
     .dot { display:inline-block; width:8px; height:8px; border-radius:50%; background:#3ec46d; margin-right:6px; }
     .dot.bad { background:#e0564f; }
+    .pair { display:flex; align-items:center; gap:14px; }
+    .pair img { width:96px; height:96px; border-radius:8px; background:#fff; padding:4px; }
   </style>
 </head>
 <body>
   <header>
     <div><h1><span id="dot" class="dot"></span><span id="bridge">MQTT HomeKit</span></h1>
       <div class="empty" id="count"></div></div>
-    <div class="pin"><span id="pin">—</span><small>HomeKit setup code</small></div>
+    <div class="pair">
+      <img id="qr" alt="HomeKit pairing QR" src="/api/qr" />
+      <div class="pin"><span id="pin">—</span><small>scan or enter to pair</small></div>
+    </div>
   </header>
   <main><div class="grid" id="grid"></div></main>
   <script>

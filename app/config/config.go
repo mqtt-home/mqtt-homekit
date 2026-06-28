@@ -140,6 +140,11 @@ func LoadConfig(file string) (Config, error) {
 	if cfg.HomeKit.Pin == "" {
 		cfg.HomeKit.Pin = "031-45-154"
 	}
+	if cfg.HomeKit.SetupID == "" {
+		// A stable 4-char setup id is needed for the pairing QR code. Changing it
+		// later only affects the QR/discovery, not existing pairings.
+		cfg.HomeKit.SetupID = "MQTT"
+	}
 	if cfg.Web.Port == 0 {
 		cfg.Web.Port = 8080
 	}

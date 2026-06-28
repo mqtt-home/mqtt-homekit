@@ -16,6 +16,7 @@ import (
 	"github.com/mqtt-home/mqtt-homekit/config"
 	"github.com/philipparndt/go-logger"
 	loggerchi "github.com/philipparndt/go-logger/chi"
+	qrcode "github.com/skip2/go-qrcode"
 )
 
 //go:embed index.html
@@ -57,6 +58,7 @@ func (ws *WebServer) setupRoutes() {
 		r.Get("/livez", ws.liveness)
 		r.Get("/info", ws.info)
 		r.Get("/devices", ws.devices)
+		r.Get("/qr", ws.qr)
 	})
 
 	ws.router.Get("/*", func(w http.ResponseWriter, _ *http.Request) {
@@ -69,9 +71,23 @@ func (ws *WebServer) info(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, map[string]any{
 		"bridge":      ws.b.BridgeName(),
 		"pin":         ws.b.Pin(),
+		"setup_id":    ws.b.SetupID(),
+		"setup_uri":   ws.b.SetupURI(),
 		"accessories": len(ws.b.Devices()),
 		"healthy":     ws.b.Healthy(),
 	})
+}
+
+// qr renders the HomeKit pairing QR code as a PNG.
+func (ws *WebServer) qr(w http.ResponseWriter, _ *http.Request) {
+	png, err := qrcode.Encode(ws.b.SetupURI(), qrcode.Medium, 320)
+	if err != nil {
+		http.Error(w, "qr error", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "image/png")
+	w.Header().Set("Cache-Control", "no-store")
+	w.Write(png)
 }
 
 type deviceJSON struct {

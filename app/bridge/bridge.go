@@ -3,6 +3,8 @@ package bridge
 import (
 	"context"
 	"fmt"
+	"strconv"
+	"strings"
 
 	"github.com/brutella/hap"
 	"github.com/brutella/hap/accessory"
@@ -11,6 +13,9 @@ import (
 	"github.com/philipparndt/go-logger"
 	"github.com/philipparndt/mqtt-gateway/mqtt"
 )
+
+// categoryBridge is the HomeKit accessory category for a bridge.
+const categoryBridge = 2
 
 // Bridge maps MQTT topics to a HomeKit bridge accessory using brutella/hap.
 type Bridge struct {
@@ -39,7 +44,13 @@ func (b *Bridge) SetUpdateListener(fn func(*Device)) { b.onUpdate = fn }
 func (b *Bridge) Devices() []*Device { return b.devices }
 func (b *Bridge) BridgeName() string { return b.cfg.HomeKit.BridgeName }
 func (b *Bridge) Pin() string        { return b.cfg.HomeKit.Pin }
+func (b *Bridge) SetupID() string    { return b.cfg.HomeKit.SetupID }
 func (b *Bridge) Healthy() bool      { return b.started }
+
+// SetupURI returns the X-HM:// pairing payload encoded in the HomeKit QR code.
+func (b *Bridge) SetupURI() string {
+	return setupURI(b.cfg.HomeKit.Pin, categoryBridge, b.cfg.HomeKit.SetupID)
+}
 
 func (b *Bridge) subscribe(topic string, cb func([]byte)) {
 	if topic == "" {
@@ -121,6 +132,23 @@ func (b *Bridge) Stop() {
 	if b.cancel != nil {
 		b.cancel()
 	}
+}
+
+// setupURI builds the HomeKit "X-HM://" pairing payload (same encoding as
+// HAP-NodeJS) used to render the pairing QR code.
+func setupURI(pin string, category int, setupID string) string {
+	code, _ := strconv.Atoi(normalizePin(pin))
+	low := uint64(code) | (1 << 28) // bit 28: supports IP transport
+	if category&1 == 1 {
+		low |= 1 << 31
+	}
+	high := uint64(category >> 1)
+	payload := high<<32 | low
+	enc := strings.ToUpper(strconv.FormatUint(payload, 36))
+	for len(enc) < 9 {
+		enc = "0" + enc
+	}
+	return "X-HM://" + enc + setupID
 }
 
 // normalizePin strips formatting characters so a friendly "031-45-154" config
