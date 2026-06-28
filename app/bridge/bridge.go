@@ -94,7 +94,7 @@ func (b *Bridge) Start() error {
 	if err != nil {
 		return fmt.Errorf("create HAP server: %w", err)
 	}
-	server.Pin = b.cfg.HomeKit.Pin
+	server.Pin = normalizePin(b.cfg.HomeKit.Pin)
 	if b.cfg.HomeKit.SetupID != "" {
 		server.SetupId = b.cfg.HomeKit.SetupID
 	}
@@ -121,4 +121,16 @@ func (b *Bridge) Stop() {
 	if b.cancel != nil {
 		b.cancel()
 	}
+}
+
+// normalizePin strips formatting characters so a friendly "031-45-154" config
+// value becomes the 8-digit code brutella/hap requires.
+func normalizePin(pin string) string {
+	var b []rune
+	for _, r := range pin {
+		if r >= '0' && r <= '9' {
+			b = append(b, r)
+		}
+	}
+	return string(b)
 }
