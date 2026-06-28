@@ -42,6 +42,10 @@ dev: build ## Build and run with the dev config
 run: build ## Alias for dev
 	@$(BUILD_DIR)/$(BINARY_NAME) $(CONFIG_DIR)/config.json
 
+.PHONY: run-test
+run-test: build ## Run with the small Büro-only test config
+	@$(BUILD_DIR)/$(BINARY_NAME) $(CONFIG_DIR)/config.test.json
+
 .PHONY: docker
 docker: ## Build the Docker image
 	@docker build -t $(DOCKER_IMAGE_NAME) .

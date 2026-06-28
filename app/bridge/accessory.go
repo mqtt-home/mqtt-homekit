@@ -147,6 +147,20 @@ func (b *Bridge) buildDevice(acc config.Accessory) (*Device, error) {
 		if sink, ok := acc.Sink("position"); ok {
 			b.writeInt(d, "position", sink, wc.TargetPosition.Int)
 		}
+		// Optional slat/tilt support (HomeKit horizontal tilt, -90..90).
+		if hasChar(acc, "tilt") {
+			cur := characteristic.NewCurrentHorizontalTiltAngle()
+			tgt := characteristic.NewTargetHorizontalTiltAngle()
+			wc.AddC(cur.C)
+			wc.AddC(tgt.C)
+			b.readInt(d, "tilt", acc.Source("tilt"), func(v int) {
+				cur.SetValue(v)
+				tgt.SetValue(v)
+			})
+			if sink, ok := acc.Sink("tilt"); ok {
+				b.writeInt(d, "tilt", sink, tgt.Int)
+			}
+		}
 		d.a = a.A
 
 	case "thermostat", "radiator":

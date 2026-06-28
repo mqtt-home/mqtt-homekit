@@ -3,6 +3,7 @@ package bridge
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 
@@ -91,6 +92,9 @@ func numberPayload(s config.ValueSink, v float64) string {
 		factor = 1
 	}
 	v = v*factor + s.Offset
+	if s.Round {
+		v = math.Round(v)
+	}
 	str := strconv.FormatFloat(v, 'f', -1, 64)
 	if s.Template != "" {
 		return strings.ReplaceAll(s.Template, "{{value}}", str)

@@ -84,6 +84,9 @@ type ValueSink struct {
 	Retain   bool    `json:"retain,omitempty"`
 	Factor   float64 `json:"factor,omitempty"`
 	Offset   float64 `json:"offset,omitempty"`
+	// Round rounds the computed value to the nearest integer before formatting
+	// (useful when a transform produces fractions, e.g. tilt-angle → slat %).
+	Round bool `json:"round,omitempty"`
 }
 
 // Source returns the read source for a characteristic, falling back to the

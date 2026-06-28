@@ -3,6 +3,8 @@
 config.json
 app/build/
 production/config/config.json
+production/config/config.test.json
 # HAP pairing state (persisted at runtime)
 hap/
+hap-test/
 *.hap
