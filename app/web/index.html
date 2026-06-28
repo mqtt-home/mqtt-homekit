@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MQTT HomeKit</title>
+  <style>
+    :root { color-scheme: light dark; --bg:#0b0d10; --card:#16191e; --muted:#8b97a6; --fg:#e7ecf2; --accent:#4f9cff; --border:#262b33; }
+    @media (prefers-color-scheme: light) { :root { --bg:#f4f6f9; --card:#fff; --muted:#5b6573; --fg:#11151a; --border:#e2e6ec; } }
+    * { box-sizing: border-box; }
+    body { margin:0; font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--fg); }
+    header { padding:20px 24px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+    h1 { font-size:18px; margin:0; }
+    .pin { font-variant-numeric:tabular-nums; font-size:22px; font-weight:600; letter-spacing:1px; color:var(--accent); }
+    .pin small { display:block; font-size:11px; color:var(--muted); font-weight:400; letter-spacing:0; }
+    main { padding:24px; }
+    .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:14px; }
+    .card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:14px 16px; }
+    .name { font-weight:600; }
+    .type { font-size:12px; color:var(--muted); text-transform:capitalize; margin-bottom:8px; }
+    .kv { display:flex; justify-content:space-between; font-size:13px; padding:2px 0; }
+    .kv span:first-child { color:var(--muted); text-transform:capitalize; }
+    .empty { color:var(--muted); font-size:13px; }
+    .dot { display:inline-block; width:8px; height:8px; border-radius:50%; background:#3ec46d; margin-right:6px; }
+    .dot.bad { background:#e0564f; }
+  </style>
+</head>
+<body>
+  <header>
+    <div><h1><span id="dot" class="dot"></span><span id="bridge">MQTT HomeKit</span></h1>
+      <div class="empty" id="count"></div></div>
+    <div class="pin"><span id="pin">—</span><small>HomeKit setup code</small></div>
+  </header>
+  <main><div class="grid" id="grid"></div></main>
+  <script>
+    async function tick() {
+      try {
+        const info = await (await fetch('/api/info')).json();
+        document.getElementById('bridge').textContent = info.bridge;
+        document.getElementById('pin').textContent = info.pin;
+        document.getElementById('count').textContent = info.accessories + ' accessories';
+        document.getElementById('dot').className = 'dot' + (info.healthy ? '' : ' bad');
+
+        const devs = await (await fetch('/api/devices')).json();
+        const grid = document.getElementById('grid');
+        grid.innerHTML = devs.map(d => {
+          const keys = Object.keys(d.state || {});
+          const rows = keys.length
+            ? keys.map(k => `<div class="kv"><span>${k.replace(/_/g,' ')}</span><span>${fmt(d.state[k])}</span></div>`).join('')
+            : '<div class="empty">waiting for data…</div>';
+          return `<div class="card"><div class="name">${esc(d.name)}</div><div class="type">${esc(d.type)}</div>${rows}</div>`;
+        }).join('');
+      } catch (e) { /* keep last state on transient errors */ }
+    }
+    function fmt(v) { return typeof v === 'boolean' ? (v ? 'on' : 'off') : esc(String(v)); }
+    function esc(s) { return s.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+    tick(); setInterval(tick, 2000);
+  </script>
+</body>
+</html>

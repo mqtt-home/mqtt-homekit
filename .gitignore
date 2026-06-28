@@ -1,0 +1,8 @@
+.idea/
+.DS_Store
+config.json
+app/build/
+production/config/config.json
+# HAP pairing state (persisted at runtime)
+hap/
+*.hap

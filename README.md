@@ -1,0 +1,153 @@
+# mqtt-homekit
+
+A lightweight **MQTT → HomeKit** bridge written in Go, using
+[`brutella/hap`](https://github.com/brutella/hap) for the HomeKit Accessory
+Protocol. It exposes MQTT-connected devices to Apple Home with a flexible,
+config-driven mapping — a low-memory replacement for a Homebridge +
+[mqttthing](https://github.com/arachnetech/homebridge-mqttthing) setup.
+
+- Single static binary, ~single-digit/low-tens MB RSS (vs. ~200 MB for Node Homebridge)
+- No plugin runtime — accessories are declared in `config.json`
+- Flexible mapping: per-characteristic topics, JSON path extraction, value/payload mapping, numeric scaling
+- Built-in status web page showing the pairing code and live values
+
+## How it relates to Homebridge
+
+Homebridge's value is its plugin ecosystem. If you only use it as an MQTT↔HomeKit
+bridge (i.e. the `mqttthing` accessory), this replaces that use case in Go. It
+does **not** run Homebridge plugins.
+
+> **Migration note:** replacing a Homebridge bridge with this one is seen by the
+> Home app as a *new* bridge — you re-scan the setup code and re-do room
+> assignments, scenes and automations for the migrated accessories. After that
+> it's stable. Accessory IDs are derived from the accessory `name`, so adding or
+> reordering accessories later does not disturb existing pairings.
+
+## Quick start
+
+```bash
+cd app
+make dev      # builds and runs with ../production/config/config.json
+```
+
+Then in the Home app: **Add Accessory → More options →** pick the bridge and
+enter the setup code (default `031-45-154`, shown on the web page at
+`http://localhost:8080`).
+
+### Docker
+
+```bash
+docker run -d --network host \
+  -v /path/to/config:/var/lib/mqtt-homekit \
+  pharndt/mqtt-homekit:latest
+```
+
+`--network host` (or a routable pod IP) is required: HomeKit uses mDNS/Bonjour
+and direct TCP from your Apple devices to the bridge.
+
+## Configuration
+
+```json
+{
+  "mqtt": { "url": "tcp://localhost:1883", "topic": "homekit", "qos": 0 },
+  "homekit": {
+    "bridge_name": "MQTT HomeKit",
+    "pin": "031-45-154",
+    "storage_dir": "/data/hap"
+  },
+  "web": { "enabled": true, "port": 8080 },
+  "accessories": [ ... ]
+}
+```
+
+`${VAR}` environment substitution is supported in the config file. See
+[`production/config/config.example.json`](production/config/config.example.json)
+for a worked example of every accessory type.
+
+> **Persistence:** `storage_dir` holds the HomeKit pairing keys. It **must**
+> survive restarts (mount a writable volume in Kubernetes) — otherwise pairing
+> is lost on every restart and you'll have to re-add the bridge. It must be
+> writable by the runtime user, and **separate** from a read-only ConfigMap
+> mount. Defaults to `<config-dir>/hap`.
+
+### Accessory types
+
+| `type` | HomeKit | Characteristics (mapping keys) |
+|--------|---------|-------------------------------|
+| `temperature` | Temperature sensor | `temperature` |
+| `humidity` | Humidity sensor | `humidity` |
+| `temperature_humidity` | Temp + humidity | `temperature`, `humidity` |
+| `contact` | Contact sensor | `contact` (on = open) |
+| `motion` | Motion sensor | `motion` |
+| `switch` | Switch | `on` |
+| `outlet` | Outlet | `on` |
+| `lightbulb` | Lightbulb | `on`, optional `brightness` (0–100) |
+| `window_covering` (`blind`, `shade`) | Window covering | `position` (0–100) |
+| `thermostat` (`radiator`) | Thermostat | `current_temperature`, `target_temperature` |
+
+### Mapping model
+
+Each accessory has an optional base `topic`, plus `get` (MQTT → HomeKit) and
+`set` (HomeKit → MQTT) maps keyed by the characteristic names above.
+
+`get` entry (`ValueSource`):
+
+| field | meaning |
+|-------|---------|
+| `topic` | topic to subscribe (falls back to the accessory `topic`) |
+| `path` | dot-path into a JSON payload (e.g. `state.temperature`); omit for a plain payload |
+| `on` / `off` | payload strings mapped to boolean true/false (case-insensitive) |
+| `factor` / `offset` | numeric transform: `out = in*factor + offset` |
+
+`set` entry (`ValueSink`):
+
+| field | meaning |
+|-------|---------|
+| `topic` | topic to publish to (falls back to the accessory `topic`) |
+| `on` / `off` | payloads sent for boolean true/false (default `true`/`false`) |
+| `template` | numeric payload template; `{{value}}` is replaced (e.g. `{"pos":{{value}}}`) |
+| `factor` / `offset` | numeric transform applied before formatting |
+| `retain` | publish retained |
+
+Examples:
+
+```jsonc
+// plain numeric payload
+{ "name": "Temp", "type": "temperature", "topic": "home/temp" }
+
+// value from JSON, custom open/closed tokens
+{ "name": "Door", "type": "contact",
+  "get": { "contact": { "topic": "zigbee/door", "path": "contact", "on": "true", "off": "false" } } }
+
+// switch with separate state/command topics
+{ "name": "Lamp", "type": "switch",
+  "get": { "on": { "topic": "lamp/state", "on": "ON", "off": "OFF" } },
+  "set": { "on": { "topic": "lamp/set",   "on": "ON", "off": "OFF" } } }
+
+// blind position via JSON command
+{ "name": "Blind", "type": "window_covering",
+  "get": { "position": { "topic": "blind/state", "path": "current_pos" } },
+  "set": { "position": { "topic": "blind/cmd", "template": "{\"pos\":{{value}}}" } } }
+```
+
+## Web UI / API
+
+`http://localhost:8080` shows the bridge name, setup code and live accessory
+values.
+
+| Endpoint | Description |
+|----------|-------------|
+| `GET /api/info` | bridge name, pin, accessory count, health |
+| `GET /api/devices` | accessories with current values |
+| `GET /api/health` | health check |
+| `GET /api/livez` | liveness probe |
+
+## Development
+
+```bash
+cd app
+make help     # list targets
+make test
+make build
+make docker
+```

@@ -1,0 +1,62 @@
+project_name: mqtt-homekit
+version: 2
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: mqtt-homekit
+    main: ./main.go
+    binary: mqtt-homekit
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    env:
+      - CGO_ENABLED=0
+    ldflags:
+      - -s -w -X github.com/mqtt-home/mqtt-homekit/version.Version={{.Version}} -X github.com/mqtt-home/mqtt-homekit/version.GitCommit={{.Commit}} -X github.com/mqtt-home/mqtt-homekit/version.BuildTime={{.Date}}
+
+dockers:
+  - image_templates:
+      - "pharndt/mqtt-homekit:{{ .Tag }}-amd64"
+    dockerfile: Dockerfile.goreleaser
+    use: buildx
+    goos: linux
+    goarch: amd64
+    build_flag_templates:
+      - "--platform=linux/amd64"
+    skip_push: false
+
+  - image_templates:
+      - "pharndt/mqtt-homekit:{{ .Tag }}-arm64"
+    dockerfile: Dockerfile.goreleaser
+    use: buildx
+    goos: linux
+    goarch: arm64
+    build_flag_templates:
+      - "--platform=linux/arm64"
+    skip_push: false
+
+docker_manifests:
+  - id: tag
+    name_template: "pharndt/mqtt-homekit:{{ .Tag }}"
+    image_templates:
+      - pharndt/mqtt-homekit:{{ .Tag }}-amd64
+      - pharndt/mqtt-homekit:{{ .Tag }}-arm64
+
+  - id: latest
+    name_template: "pharndt/mqtt-homekit:latest"
+    image_templates:
+      - pharndt/mqtt-homekit:{{ .Tag }}-amd64
+      - pharndt/mqtt-homekit:{{ .Tag }}-arm64
+
+release:
+  disable: false
+  mode: replace
+  draft: false
+  prerelease: auto
+  make_latest: true
+  skip_upload: true

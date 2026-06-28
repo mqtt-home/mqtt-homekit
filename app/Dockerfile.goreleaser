@@ -1,0 +1,8 @@
+FROM gcr.io/distroless/static:nonroot
+
+WORKDIR /
+COPY mqtt-homekit /mqtt-homekit
+
+USER nonroot:nonroot
+
+ENTRYPOINT ["/mqtt-homekit", "/var/lib/mqtt-homekit/config.json"]

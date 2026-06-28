@@ -1,0 +1,73 @@
+{
+  "mqtt": {
+    "url": "tcp://localhost:1883",
+    "topic": "homekit",
+    "qos": 0,
+    "retain": false
+  },
+  "homekit": {
+    "bridge_name": "MQTT HomeKit",
+    "pin": "031-45-154",
+    "storage_dir": "/data/hap"
+  },
+  "web": {
+    "enabled": true,
+    "port": 8080
+  },
+  "loglevel": "info",
+  "accessories": [
+    {
+      "name": "Living Room Temperature",
+      "type": "temperature",
+      "comment": "plain numeric payload on a single topic",
+      "topic": "home/livingroom/temperature"
+    },
+    {
+      "name": "Bedroom Climate",
+      "type": "temperature_humidity",
+      "comment": "two values extracted from one JSON payload",
+      "get": {
+        "temperature": { "topic": "home/bedroom/sensor", "path": "temperature" },
+        "humidity": { "topic": "home/bedroom/sensor", "path": "humidity" }
+      }
+    },
+    {
+      "name": "Front Door",
+      "type": "contact",
+      "comment": "custom open/closed payload mapping",
+      "get": {
+        "contact": { "topic": "zigbee/front-door", "path": "contact", "on": "true", "off": "false" }
+      }
+    },
+    {
+      "name": "Hallway Motion",
+      "type": "motion",
+      "get": { "motion": { "topic": "zigbee/hallway", "path": "occupancy" } }
+    },
+    {
+      "name": "Desk Lamp",
+      "type": "switch",
+      "comment": "separate state and command topics",
+      "get": { "on": { "topic": "home/desk-lamp/state", "on": "ON", "off": "OFF" } },
+      "set": { "on": { "topic": "home/desk-lamp/set", "on": "ON", "off": "OFF" } }
+    },
+    {
+      "name": "Living Room Blind",
+      "type": "window_covering",
+      "comment": "position 0-100; command via JSON template",
+      "get": { "position": { "topic": "shelly/blind/state", "path": "current_pos" } },
+      "set": { "position": { "topic": "shelly/blind/command", "template": "{\"pos\":{{value}}}" } }
+    },
+    {
+      "name": "Office Radiator",
+      "type": "thermostat",
+      "get": {
+        "current_temperature": { "topic": "home/office/radiator", "path": "temperature" },
+        "target_temperature": { "topic": "home/office/radiator", "path": "setpoint" }
+      },
+      "set": {
+        "target_temperature": { "topic": "home/office/radiator/set", "template": "{\"setpoint\":{{value}}}", "retain": true }
+      }
+    }
+  ]
+}
