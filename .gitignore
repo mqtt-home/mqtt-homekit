@@ -2,6 +2,9 @@
 .DS_Store
 config.json
 app/build/
+app/web/dist/
+app/web/node_modules/
+app/web/*.tsbuildinfo
 production/config/config.json
 production/config/config.test.json
 # HAP pairing state (persisted at runtime)

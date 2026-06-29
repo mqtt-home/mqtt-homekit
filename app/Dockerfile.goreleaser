@@ -2,6 +2,7 @@ FROM gcr.io/distroless/static:nonroot
 
 WORKDIR /
 COPY mqtt-homekit /mqtt-homekit
+COPY web/dist /web/dist
 
 USER nonroot:nonroot
 

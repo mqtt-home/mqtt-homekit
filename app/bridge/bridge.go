@@ -8,6 +8,7 @@ import (
 
 	"github.com/brutella/hap"
 	"github.com/brutella/hap/accessory"
+	hlog "github.com/brutella/hap/log"
 	"github.com/mqtt-home/mqtt-homekit/config"
 	"github.com/mqtt-home/mqtt-homekit/version"
 	"github.com/philipparndt/go-logger"
@@ -73,8 +74,27 @@ func (b *Bridge) broadcast(d *Device) {
 	}
 }
 
+// hapLogWriter routes brutella/hap's logger through go-logger so library
+// messages share the application's log format and level.
+type hapLogWriter struct{}
+
+func (hapLogWriter) Write(p []byte) (int, error) {
+	logger.Debug(strings.TrimRight(string(p), "\n"), "component", "hap")
+	return len(p), nil
+}
+
+// routeHAPLogging strips brutella's own prefix/timestamp and forwards its Info
+// output to go-logger. brutella's Debug logger is left disabled (it's very
+// chatty HAP-protocol output) so this only relays the library's notable lines.
+func routeHAPLogging() {
+	hlog.Info.SetFlags(0)
+	hlog.Info.SetPrefix("")
+	hlog.Info.SetOutput(hapLogWriter{})
+}
+
 // Start connects to MQTT, builds the accessories and starts the HAP server.
 func (b *Bridge) Start() error {
+	routeHAPLogging()
 	mqtt.Start(b.cfg.MQTT, "mqtt_homekit")
 
 	var accs []*accessory.A

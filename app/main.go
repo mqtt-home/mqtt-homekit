@@ -46,6 +46,9 @@ func main() {
 	var webServer *web.WebServer
 	if cfg.Web.Enabled {
 		webServer = web.NewWebServer(b)
+		b.SetUpdateListener(func(d *bridge.Device) {
+			webServer.BroadcastDevice(d)
+		})
 	}
 
 	if err := b.Start(); err != nil {
