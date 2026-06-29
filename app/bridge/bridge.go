@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	dlog "github.com/brutella/dnssd/log"
 	"github.com/brutella/hap"
 	"github.com/brutella/hap/accessory"
 	hlog "github.com/brutella/hap/log"
@@ -90,6 +91,11 @@ func routeHAPLogging() {
 	hlog.Info.SetFlags(0)
 	hlog.Info.SetPrefix("")
 	hlog.Info.SetOutput(hapLogWriter{})
+
+	// dnssd has its own logger (e.g. the "unable to wait for link updates" line).
+	dlog.Info.SetFlags(0)
+	dlog.Info.SetPrefix("")
+	dlog.Info.SetOutput(hapLogWriter{})
 }
 
 // Start connects to MQTT, builds the accessories and starts the HAP server.

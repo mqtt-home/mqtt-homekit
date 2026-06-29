@@ -3,6 +3,7 @@ module github.com/mqtt-home/mqtt-homekit
 go 1.26.2
 
 require (
+	github.com/brutella/dnssd v1.2.14
 	github.com/brutella/hap v0.0.35
 	github.com/go-chi/chi/v5 v5.3.0
 	github.com/go-chi/cors v1.2.2
@@ -13,7 +14,6 @@ require (
 )
 
 require (
-	github.com/brutella/dnssd v1.2.14 // indirect
 	github.com/eclipse/paho.mqtt.golang v1.5.1 // indirect
 	github.com/go-chi/chi v1.5.4 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
