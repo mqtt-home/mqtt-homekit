@@ -32,6 +32,11 @@ type HomeKitConfig struct {
 	// Port is the HAP TCP port. 0 lets the OS choose (fine unless you need a
 	// stable port through a firewall with hostNetwork).
 	Port int `json:"port,omitempty"`
+	// Interfaces restricts the network interfaces the bridge advertises on
+	// (e.g. ["en0"]). On a multi-homed host, leaving this empty makes the
+	// controller try unreachable secondary/VM IPs and fail to connect. Empty
+	// means all interfaces.
+	Interfaces []string `json:"interfaces,omitempty"`
 }
 
 type WebConfig struct {

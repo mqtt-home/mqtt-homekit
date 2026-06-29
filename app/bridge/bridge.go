@@ -112,6 +112,9 @@ func (b *Bridge) Start() error {
 	if b.cfg.HomeKit.Port > 0 {
 		server.Addr = fmt.Sprintf(":%d", b.cfg.HomeKit.Port)
 	}
+	if len(b.cfg.HomeKit.Interfaces) > 0 {
+		server.Ifaces = b.cfg.HomeKit.Interfaces
+	}
 	b.server = server
 
 	ctx, cancel := context.WithCancel(context.Background())
