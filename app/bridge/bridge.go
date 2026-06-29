@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	dlog "github.com/brutella/dnssd/log"
 	"github.com/brutella/hap"
@@ -27,6 +28,7 @@ type Bridge struct {
 	devices   []*Device
 	usedAIDs  map[uint64]bool
 	cancel    context.CancelFunc
+	done      chan struct{} // closed when the HAP server has fully stopped
 	started   bool
 
 	onUpdate func(*Device)
@@ -145,7 +147,9 @@ func (b *Bridge) Start() error {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	b.cancel = cancel
+	b.done = make(chan struct{})
 	go func() {
+		defer close(b.done)
 		logger.Info("Starting HAP server", "bridge", b.cfg.HomeKit.BridgeName, "pin", b.cfg.HomeKit.Pin, "storage", b.cfg.HomeKit.StorageDir)
 		if err := server.ListenAndServe(ctx); err != nil && ctx.Err() == nil {
 			logger.Error("HAP server stopped", "error", err)
@@ -157,9 +161,20 @@ func (b *Bridge) Start() error {
 	return nil
 }
 
+// Stop triggers a graceful HAP shutdown and waits for it to complete, so the
+// dnssd "goodbye" is sent and controller connections are closed before the
+// process exits — letting HomeKit mark the bridge offline immediately instead
+// of after a timeout.
 func (b *Bridge) Stop() {
 	if b.cancel != nil {
 		b.cancel()
+	}
+	if b.done != nil {
+		select {
+		case <-b.done:
+		case <-time.After(5 * time.Second):
+			logger.Warn("Timed out waiting for HAP server shutdown")
+		}
 	}
 }
 
