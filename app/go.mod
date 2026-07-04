@@ -11,6 +11,7 @@ require (
 	github.com/philipparndt/go-logger/chi v1.10.0
 	github.com/philipparndt/mqtt-gateway v1.10.0
 	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e
+	sigs.k8s.io/yaml v1.4.0
 )
 
 require (
@@ -32,5 +33,6 @@ require (
 	golang.org/x/tools v0.36.0 // indirect
 	gopkg.in/Regis24GmbH/go-diacritics.v2 v2.0.3 // indirect
 	k8s.io/klog/v2 v2.140.0 // indirect
-	sigs.k8s.io/yaml v1.4.0 // indirect
 )
+
+replace github.com/brutella/dnssd => ./third_party/dnssd
