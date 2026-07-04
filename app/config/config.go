@@ -55,6 +55,10 @@ type PprofConfig struct {
 	Enabled bool `json:"enabled,omitempty"`
 	// Port defaults to 6060.
 	Port int `json:"port,omitempty"`
+	// Bind restricts the listen address (e.g. "127.0.0.1" to keep pprof
+	// reachable only via localhost / kubectl port-forward). Empty = all
+	// interfaces.
+	Bind string `json:"bind,omitempty"`
 }
 
 // Accessory is one HomeKit accessory mapped to MQTT. Per-characteristic topics,

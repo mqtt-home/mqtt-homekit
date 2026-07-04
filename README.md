@@ -91,6 +91,7 @@ only enable on trusted networks):
 pprof:
   enabled: true
   port: 6060 # default
+  bind: 127.0.0.1 # optional: loopback only (kubectl port-forward); empty = all interfaces
 ```
 
 > **Persistence:** `storage_dir` holds the HomeKit pairing keys. It **must**

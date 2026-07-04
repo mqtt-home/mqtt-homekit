@@ -84,7 +84,7 @@ func initPprof(cfg config.PprofConfig) {
 	if !cfg.Enabled {
 		return
 	}
-	addr := ":" + strconv.Itoa(cfg.Port)
+	addr := cfg.Bind + ":" + strconv.Itoa(cfg.Port)
 	logger.Info("pprof profiling enabled", "address", addr)
 	go func() {
 		if err := http.ListenAndServe(addr, nil); err != nil {
