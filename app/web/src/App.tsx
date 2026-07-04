@@ -4,6 +4,7 @@ import { useSSE } from '@/hooks/useSSE';
 import { fetchDevices, fetchInfo, API_BASE } from '@/lib/api';
 import { useTheme } from '@/contexts/ThemeContext';
 import { DeviceCard } from '@/components/DeviceCard';
+import { CategoryFilter, matchesCategory, type CategoryKey } from '@/components/CategoryFilter';
 import { cn } from '@/lib/utils';
 import type { Device, Info } from '@/types/homekit';
 
@@ -11,6 +12,7 @@ export function App() {
   const [info, setInfo] = useState<Info | null>(null);
   const [devices, setDevices] = useState<Device[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [category, setCategory] = useState<CategoryKey>('all');
   const { devices: liveStates, isConnected, error, reconnect } = useSSE();
   const { theme, toggleTheme } = useTheme();
 
@@ -28,18 +30,20 @@ export function App() {
     return devices.map(d => liveStates[d.aid] ?? d);
   }, [devices, liveStates]);
 
-  // Group by room, preserving config order; unassigned devices come last.
+  // Category filter, then group by room preserving config order; unassigned
+  // devices come last.
   const rooms = useMemo(() => {
+    const filtered = merged.filter(d => matchesCategory(d, category));
     const groups = new Map<string, Device[]>();
-    for (const d of merged) {
+    for (const d of filtered) {
       const room = d.room || '';
       if (!groups.has(room)) groups.set(room, []);
       groups.get(room)!.push(d);
     }
     const named = [...groups.entries()].filter(([room]) => room !== '');
     const unassigned = groups.get('') ?? [];
-    return { named, unassigned };
-  }, [merged]);
+    return { named, unassigned, empty: filtered.length === 0 };
+  }, [merged, category]);
 
   const healthy = !!info?.healthy && isConnected;
 
@@ -106,11 +110,18 @@ export function App() {
           </div>
         )}
 
+        {/* Category filter */}
+        {loaded && merged.length > 0 && (
+          <CategoryFilter devices={merged} active={category} onChange={setCategory} />
+        )}
+
         {/* Accessory grid, grouped by room */}
         {!loaded ? (
           <div className="text-muted-foreground text-center py-16">Loading accessories...</div>
         ) : merged.length === 0 ? (
           <div className="text-muted-foreground text-center py-16">No accessories found.</div>
+        ) : rooms.empty ? (
+          <div className="text-muted-foreground text-center py-16">No accessories in this category.</div>
         ) : (
           <div className="space-y-8">
             {rooms.named.map(([room, devs]) => (
