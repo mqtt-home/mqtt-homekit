@@ -18,6 +18,7 @@ export function LightbulbCard({ device }: { device: Device }) {
       device={device}
       icon={Lightbulb}
       iconClass={on ? 'text-yellow-500' : 'text-muted-foreground'}
+      active={on}
       right={can('on')
         ? <Toggle checked={on} onChange={v => set('on', v)} aria-label={`${device.name} on/off`} />
         : <Pill text={on ? 'On' : 'Off'} tone={on ? 'on' : 'off'} />}

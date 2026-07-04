@@ -69,11 +69,15 @@ function render(device: Device): Rendered {
 // Read-only card for sensor kinds (temperature, humidity, contact, motion).
 export function SensorCard({ device }: { device: Device }) {
   const { icon, iconClass, value } = render(device);
+  const active =
+    (device.kind === 'contact' && device.state.contact === 'open') ||
+    (device.kind === 'motion' && device.state.motion === 'detected');
   return (
     <CardShell
       device={device}
       icon={icon}
       iconClass={iconClass}
+      active={active}
       right={isWaiting(device)
         ? <span className="text-sm text-muted-foreground italic">waiting…</span>
         : value}

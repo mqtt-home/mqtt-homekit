@@ -16,7 +16,8 @@ export function WindowCoveringCard({ device }: { device: Device }) {
     <CardShell
       device={device}
       icon={Blinds}
-      iconClass="text-indigo-500"
+      iconClass={position !== undefined && position > 0 ? 'text-indigo-400' : 'text-indigo-500'}
+      active={position !== undefined && position > 0}
       right={
         <div className="flex flex-col items-end gap-0.5">
           <span className="text-2xl font-semibold tabular-nums">
@@ -52,14 +53,14 @@ export function WindowCoveringCard({ device }: { device: Device }) {
             <button
               type="button"
               onClick={() => set('position', 100)}
-              className="flex-1 flex items-center justify-center gap-1.5 text-sm font-medium py-1.5 rounded-lg bg-muted hover:bg-accent text-foreground transition-colors"
+              className="flex-1 flex items-center justify-center gap-1.5 text-sm font-medium py-1.5 rounded-lg bg-foreground/10 hover:bg-foreground/20 text-foreground transition-colors"
             >
               <ArrowUpToLine className="h-4 w-4" /> Open
             </button>
             <button
               type="button"
               onClick={() => set('position', 0)}
-              className="flex-1 flex items-center justify-center gap-1.5 text-sm font-medium py-1.5 rounded-lg bg-muted hover:bg-accent text-foreground transition-colors"
+              className="flex-1 flex items-center justify-center gap-1.5 text-sm font-medium py-1.5 rounded-lg bg-foreground/10 hover:bg-foreground/20 text-foreground transition-colors"
             >
               <ArrowDownToLine className="h-4 w-4" /> Close
             </button>

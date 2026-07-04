@@ -32,18 +32,31 @@ interface Props {
   iconClass: string;
   // Right-hand slot: primary value or primary control.
   right: ReactNode;
+  // Active state (door open, motion, switch on, cover open) renders the card
+  // brighter so it stands out at a glance.
+  active?: boolean;
   // Optional controls row rendered below a divider.
   children?: ReactNode;
 }
 
 // Common card frame: icon tile, name + kind, right-hand slot, optional
 // controls section underneath.
-export function CardShell({ device, icon: Icon, iconClass, right, children }: Props) {
+export function CardShell({ device, icon: Icon, iconClass, right, active, children }: Props) {
   const waiting = isWaiting(device);
   return (
-    <div className="bg-card rounded-xl border border-border p-4">
+    <div
+      className={cn(
+        'bg-card rounded-xl border border-border p-4 transition-colors',
+        active && 'bg-accent border-foreground/25',
+      )}
+    >
       <div className="flex items-center gap-4">
-        <div className="h-12 w-12 shrink-0 rounded-lg bg-muted flex items-center justify-center">
+        <div
+          className={cn(
+            'h-12 w-12 shrink-0 rounded-lg flex items-center justify-center',
+            active ? 'bg-foreground/10' : 'bg-muted',
+          )}
+        >
           <Icon className={cn('h-6 w-6', iconClass)} />
         </div>
         <div className="min-w-0 flex-1">

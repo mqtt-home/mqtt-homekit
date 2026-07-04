@@ -90,7 +90,7 @@ export function ThermostatCard({ device }: { device: Device }) {
                 <button
                   type="button"
                   onClick={() => step(-STEP)}
-                  className="h-8 w-8 flex items-center justify-center rounded-lg bg-muted hover:bg-accent text-foreground transition-colors"
+                  className="h-8 w-8 flex items-center justify-center rounded-lg bg-foreground/10 hover:bg-foreground/20 text-foreground transition-colors"
                   aria-label="Decrease target temperature"
                 >
                   <Minus className="h-4 w-4" />
@@ -101,7 +101,7 @@ export function ThermostatCard({ device }: { device: Device }) {
                 <button
                   type="button"
                   onClick={() => step(STEP)}
-                  className="h-8 w-8 flex items-center justify-center rounded-lg bg-muted hover:bg-accent text-foreground transition-colors"
+                  className="h-8 w-8 flex items-center justify-center rounded-lg bg-foreground/10 hover:bg-foreground/20 text-foreground transition-colors"
                   aria-label="Increase target temperature"
                 >
                   <Plus className="h-4 w-4" />

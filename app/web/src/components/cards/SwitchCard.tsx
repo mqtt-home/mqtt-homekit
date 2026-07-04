@@ -15,6 +15,7 @@ export function SwitchCard({ device }: { device: Device }) {
       device={device}
       icon={device.kind === 'outlet' ? Plug : Power}
       iconClass={on ? 'text-green-500' : 'text-muted-foreground'}
+      active={on}
       right={can('on')
         ? <Toggle checked={on} onChange={v => set('on', v)} aria-label={`${device.name} on/off`} />
         : <Pill text={on ? 'On' : 'Off'} tone={on ? 'on' : 'off'} />}
