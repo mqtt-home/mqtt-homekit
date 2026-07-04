@@ -32,4 +32,4 @@ COPY --from=frontend-builder /app/web/dist /web/dist
 
 USER nonroot:nonroot
 
-ENTRYPOINT ["/mqtt-homekit", "/var/lib/mqtt-homekit/config.json"]
+ENTRYPOINT ["/mqtt-homekit", "/var/lib/mqtt-homekit/config.yaml"]
