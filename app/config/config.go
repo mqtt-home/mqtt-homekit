@@ -17,6 +17,7 @@ type Config struct {
 	MQTT        config.MQTTConfig `json:"mqtt"`
 	HomeKit     HomeKitConfig     `json:"homekit"`
 	Web         WebConfig         `json:"web"`
+	Pprof       PprofConfig       `json:"pprof"`
 	Accessories []Accessory       `json:"accessories"`
 	LogLevel    string            `json:"loglevel,omitempty"`
 }
@@ -46,6 +47,14 @@ type WebConfig struct {
 	Enabled              bool `json:"enabled"`
 	Port                 int  `json:"port"`
 	LivenessGraceSeconds int  `json:"liveness_grace_seconds,omitempty"`
+}
+
+// PprofConfig enables the Go pprof profiling endpoint. Disabled by default;
+// only enable on trusted networks — pprof exposes runtime internals.
+type PprofConfig struct {
+	Enabled bool `json:"enabled,omitempty"`
+	// Port defaults to 6060.
+	Port int `json:"port,omitempty"`
 }
 
 // Accessory is one HomeKit accessory mapped to MQTT. Per-characteristic topics,
@@ -171,6 +180,9 @@ func LoadConfig(file string) (Config, error) {
 	}
 	if cfg.Web.Port == 0 {
 		cfg.Web.Port = 8080
+	}
+	if cfg.Pprof.Port == 0 {
+		cfg.Pprof.Port = 6060
 	}
 
 	return cfg, nil

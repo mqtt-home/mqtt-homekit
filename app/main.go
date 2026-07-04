@@ -19,7 +19,6 @@ import (
 func main() {
 	logger.Init("info", logger.Logger())
 	logger.Info("mqtt-homekit", "version", version.Info())
-	initPprof()
 
 	if len(os.Args) < 2 {
 		logger.Error("No configuration file specified")
@@ -40,6 +39,8 @@ func main() {
 	if cfg.HomeKit.StorageDir == "" {
 		cfg.HomeKit.StorageDir = filepath.Join(filepath.Dir(configFile), "hap")
 	}
+
+	initPprof(cfg.Pprof)
 
 	b := bridge.New(cfg)
 
@@ -76,8 +77,18 @@ func main() {
 	logger.Info("Shutdown complete")
 }
 
-func initPprof() {
+// initPprof serves the Go pprof endpoint when enabled in the config. The
+// net/http/pprof import registers its handlers on the default mux, which only
+// this listener serves.
+func initPprof(cfg config.PprofConfig) {
+	if !cfg.Enabled {
+		return
+	}
+	addr := ":" + strconv.Itoa(cfg.Port)
+	logger.Info("pprof profiling enabled", "address", addr)
 	go func() {
-		http.ListenAndServe(":6061", nil)
+		if err := http.ListenAndServe(addr, nil); err != nil {
+			logger.Error("pprof server stopped", "error", err)
+		}
 	}()
 }

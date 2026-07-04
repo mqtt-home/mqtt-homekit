@@ -84,6 +84,15 @@ The optional `room` field groups accessories in the web dashboard. (HomeKit
 rooms cannot be set by a bridge — the Home app stores room assignments on the
 controller side, so rooms are assigned there manually.)
 
+Go pprof profiling is available behind an opt-in flag (disabled by default;
+only enable on trusted networks):
+
+```yaml
+pprof:
+  enabled: true
+  port: 6060 # default
+```
+
 > **Persistence:** `storage_dir` holds the HomeKit pairing keys. It **must**
 > survive restarts (mount a writable volume in Kubernetes) — otherwise pairing
 > is lost on every restart and you'll have to re-add the bridge. It must be
