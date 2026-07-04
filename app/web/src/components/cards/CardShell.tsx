@@ -1,6 +1,7 @@
 import type { ComponentType, ReactNode } from 'react';
 import type { Device } from '@/types/homekit';
 import { isWaiting } from '@/types/homekit';
+import { BatteryBadge } from '@/components/BatteryBadge';
 import { cn } from '@/lib/utils';
 
 export type IconType = ComponentType<{ className?: string }>;
@@ -61,9 +62,12 @@ export function CardShell({ device, icon: Icon, iconClass, right, active, childr
         </div>
         <div className="min-w-0 flex-1">
           <h2 className="text-base font-semibold text-foreground truncate">{device.name}</h2>
-          <p className="text-xs text-muted-foreground truncate">
+          <p className="text-xs text-muted-foreground truncate flex items-center gap-1.5">
             {kindLabel(device.kind)}
             {waiting && ' · waiting for data'}
+            {typeof device.state.battery === 'number' && (
+              <BatteryBadge level={device.state.battery} />
+            )}
           </p>
         </div>
         <div className="shrink-0 text-right">{right}</div>

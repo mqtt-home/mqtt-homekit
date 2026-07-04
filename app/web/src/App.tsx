@@ -5,6 +5,7 @@ import { fetchDevices, fetchInfo, API_BASE } from '@/lib/api';
 import { useTheme } from '@/contexts/ThemeContext';
 import { DeviceCard } from '@/components/DeviceCard';
 import { CategoryFilter, matchesCategory, type CategoryKey } from '@/components/CategoryFilter';
+import { BatteryOverview } from '@/components/BatteryOverview';
 import { cn } from '@/lib/utils';
 import type { Device, Info } from '@/types/homekit';
 
@@ -109,6 +110,9 @@ export function App() {
             </div>
           </div>
         )}
+
+        {/* Battery overview */}
+        {loaded && <BatteryOverview devices={merged} />}
 
         {/* Category filter */}
         {loaded && merged.length > 0 && (
