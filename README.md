@@ -7,9 +7,10 @@ config-driven mapping — a low-memory replacement for a Homebridge +
 [mqttthing](https://github.com/arachnetech/homebridge-mqttthing) setup.
 
 - Single static binary, ~single-digit/low-tens MB RSS (vs. ~200 MB for Node Homebridge)
-- No plugin runtime — accessories are declared in `config.json`
+- No plugin runtime — accessories are declared in a JSON or YAML config file
 - Flexible mapping: per-characteristic topics, JSON path extraction, value/payload mapping, numeric scaling
-- Built-in status web page showing the pairing code and live values
+- Built-in web dashboard: pairing QR code, live values via SSE, and full device
+  control (switches, lights, covers, thermostats) grouped by room
 
 ## How it relates to Homebridge
 
@@ -27,7 +28,7 @@ does **not** run Homebridge plugins.
 
 ```bash
 cd app
-make dev      # builds and runs with ../production/config/config.json
+make dev      # builds and runs with ../production/config/config.yaml
 ```
 
 Then in the Home app: **Add Accessory → More options →** pick the bridge and
@@ -47,22 +48,41 @@ and direct TCP from your Apple devices to the bridge.
 
 ## Configuration
 
-```json
-{
-  "mqtt": { "url": "tcp://localhost:1883", "topic": "homekit", "qos": 0 },
-  "homekit": {
-    "bridge_name": "MQTT HomeKit",
-    "pin": "031-45-154",
-    "storage_dir": "/data/hap"
-  },
-  "web": { "enabled": true, "port": 8080 },
-  "accessories": [ ... ]
-}
+Both **YAML** (`.yaml`/`.yml`) and **JSON** config files are supported —
+the format is chosen by file extension.
+
+```yaml
+mqtt:
+  url: tcp://localhost:1883
+  topic: homekit
+  qos: 0
+homekit:
+  bridge_name: MQTT HomeKit
+  pin: 031-45-154
+  storage_dir: /data/hap
+web:
+  enabled: true
+  port: 8080
+accessories:
+  - name: Desk Lamp
+    type: switch
+    room: Office
+    get:
+      "on": { topic: home/desk-lamp/state, "on": "ON", "off": "OFF" }
+    set:
+      "on": { topic: home/desk-lamp/set, "on": "ON", "off": "OFF" }
 ```
 
+> **YAML note:** quote the `on` / `off` characteristic keys **and** payload
+> values (`"on": "ON"`) — YAML parses bare `on`/`off`/`yes`/`no` as booleans.
+
 `${VAR}` environment substitution is supported in the config file. See
-[`production/config/config.example.json`](production/config/config.example.json)
+[`production/config/config.example.yaml`](production/config/config.example.yaml)
 for a worked example of every accessory type.
+
+The optional `room` field groups accessories in the web dashboard. (HomeKit
+rooms cannot be set by a bridge — the Home app stores room assignments on the
+controller side, so rooms are assigned there manually.)
 
 > **Persistence:** `storage_dir` holds the HomeKit pairing keys. It **must**
 > survive restarts (mount a writable volume in Kubernetes) — otherwise pairing
@@ -82,8 +102,8 @@ for a worked example of every accessory type.
 | `switch` | Switch | `on` |
 | `outlet` | Outlet | `on` |
 | `lightbulb` | Lightbulb | `on`, optional `brightness` (0–100) |
-| `window_covering` (`blind`, `shade`) | Window covering | `position` (0–100) |
-| `thermostat` (`radiator`) | Thermostat | `current_temperature`, `target_temperature` |
+| `window_covering` (`blind`, `shade`) | Window covering | `position` (0–100), optional `tilt` (−90–90°) |
+| `thermostat` (`radiator`) | Thermostat | `current_temperature`, `target_temperature`, optional `mode` (`off`/`heat`/`cool`/`auto`) |
 
 ### Mapping model
 
@@ -132,13 +152,21 @@ Examples:
 
 ## Web UI / API
 
-`http://localhost:8080` shows the bridge name, setup code and live accessory
-values.
+`http://localhost:8080` is a live dashboard: pairing QR code and setup code,
+accessories grouped by `room`, values updating via SSE — and full device
+control. Switches and lights get toggles (plus a brightness slider), window
+coverings get position/tilt sliders with open/close shortcuts, thermostats get
+a target-temperature stepper and an off/heat/auto mode switch. Web controls
+publish to MQTT and update HomeKit simultaneously, exactly like a change made
+from the Home app.
 
 | Endpoint | Description |
 |----------|-------------|
 | `GET /api/info` | bridge name, pin, accessory count, health |
-| `GET /api/devices` | accessories with current values |
+| `GET /api/devices` | accessories with current values, rooms and writable characteristics |
+| `POST /api/devices/{aid}/control` | set a writable characteristic: `{"name": "on", "value": true}` |
+| `GET /api/events` | SSE stream of device state updates |
+| `GET /api/qr` | pairing QR code (PNG) |
 | `GET /api/health` | health check |
 | `GET /api/livez` | liveness probe |
 

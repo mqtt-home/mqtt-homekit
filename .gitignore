@@ -7,6 +7,8 @@ app/web/node_modules/
 app/web/*.tsbuildinfo
 production/config/config.json
 production/config/config.test.json
+production/config/config.yaml
+production/config/config.test.yaml
 # HAP pairing state (persisted at runtime)
 hap/
 hap-test/

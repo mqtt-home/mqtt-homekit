@@ -1,0 +1,89 @@
+# Example mqtt-homekit configuration — one accessory of every supported type.
+# Both YAML and JSON configs are supported (chosen by file extension).
+#
+# YAML note: quote the "on"/"off" characteristic keys and payload values —
+# bare on/off are parsed as booleans by YAML.
+mqtt:
+  url: tcp://localhost:1883
+  topic: homekit
+  qos: 0
+  retain: false
+homekit:
+  bridge_name: MQTT HomeKit
+  pin: 031-45-154
+  # Persisted pairing keys — MUST survive restarts (mount a volume).
+  storage_dir: /data/hap
+web:
+  enabled: true
+  port: 8080
+loglevel: info
+accessories:
+  # Plain numeric payload on a single topic.
+  - name: Living Room Temperature
+    type: temperature
+    room: Living Room
+    topic: home/livingroom/temperature
+
+  # Two values extracted from one JSON payload.
+  - name: Bedroom Climate
+    type: temperature_humidity
+    room: Bedroom
+    get:
+      temperature: { topic: home/bedroom/sensor, path: temperature }
+      humidity: { topic: home/bedroom/sensor, path: humidity }
+
+  # Custom open/closed payload mapping.
+  - name: Front Door
+    type: contact
+    room: Hallway
+    get:
+      contact: { topic: zigbee/front-door, path: contact, "on": "true", "off": "false" }
+
+  - name: Hallway Motion
+    type: motion
+    room: Hallway
+    get:
+      motion: { topic: zigbee/hallway, path: occupancy }
+
+  # Separate state and command topics.
+  - name: Desk Lamp
+    type: switch
+    room: Office
+    get:
+      "on": { topic: home/desk-lamp/state, "on": "ON", "off": "OFF" }
+    set:
+      "on": { topic: home/desk-lamp/set, "on": "ON", "off": "OFF" }
+
+  # Dimmable light.
+  - name: Ceiling Light
+    type: lightbulb
+    room: Office
+    get:
+      "on": { topic: home/ceiling/state, "on": "ON", "off": "OFF" }
+      brightness: { topic: home/ceiling/brightness/state }
+    set:
+      "on": { topic: home/ceiling/set, "on": "ON", "off": "OFF" }
+      brightness: { topic: home/ceiling/brightness/set }
+
+  # Position 0-100 plus venetian slat tilt (-90..90°), Shelly-style commands.
+  - name: Living Room Blind
+    type: window_covering
+    room: Living Room
+    get:
+      position: { topic: shelly/blind/status, path: current_pos }
+      tilt: { topic: shelly/blind/status, path: slat_pos, factor: 1.8, offset: -90 }
+    set:
+      position: { topic: shelly/blind/command, template: "pos,{{value}}" }
+      tilt: { topic: shelly/blind/command, factor: 0.5555555556, offset: 50, round: true, template: "slat_pos,{{value}}" }
+
+  # Thermostat with heating mode (zigbee2mqtt TRV style).
+  - name: Office Radiator
+    type: thermostat
+    room: Office
+    get:
+      current_temperature: { topic: zigbee2mqtt/office-trv, path: local_temperature }
+      target_temperature: { topic: zigbee2mqtt/office-trv, path: occupied_heating_setpoint }
+      mode: { topic: zigbee2mqtt/office-trv, path: system_mode }
+    set:
+      target_temperature: { topic: zigbee2mqtt/office-trv/set, template: '{"occupied_heating_setpoint":{{value}}}' }
+      mode: { topic: zigbee2mqtt/office-trv/set, template: '{"system_mode":"{{value}}"}' }
