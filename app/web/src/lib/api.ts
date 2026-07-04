@@ -13,3 +13,14 @@ export async function fetchDevices(): Promise<Device[]> {
   if (!response.ok) throw new Error('Failed to fetch devices');
   return response.json();
 }
+
+// Set a writable characteristic (e.g. { name: "on", value: true }).
+export async function controlDevice(aid: number, name: string, value: unknown): Promise<Device> {
+  const response = await fetch(`${API_BASE}/devices/${aid}/control`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, value }),
+  });
+  if (!response.ok) throw new Error((await response.text()) || 'Control failed');
+  return response.json();
+}

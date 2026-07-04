@@ -28,6 +28,19 @@ export function App() {
     return devices.map(d => liveStates[d.aid] ?? d);
   }, [devices, liveStates]);
 
+  // Group by room, preserving config order; unassigned devices come last.
+  const rooms = useMemo(() => {
+    const groups = new Map<string, Device[]>();
+    for (const d of merged) {
+      const room = d.room || '';
+      if (!groups.has(room)) groups.set(room, []);
+      groups.get(room)!.push(d);
+    }
+    const named = [...groups.entries()].filter(([room]) => room !== '');
+    const unassigned = groups.get('') ?? [];
+    return { named, unassigned };
+  }, [merged]);
+
   const healthy = !!info?.healthy && isConnected;
 
   return (
@@ -93,16 +106,39 @@ export function App() {
           </div>
         )}
 
-        {/* Accessory grid */}
+        {/* Accessory grid, grouped by room */}
         {!loaded ? (
           <div className="text-muted-foreground text-center py-16">Loading accessories...</div>
         ) : merged.length === 0 ? (
           <div className="text-muted-foreground text-center py-16">No accessories found.</div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {merged.map(device => (
-              <DeviceCard key={device.aid} device={device} />
+          <div className="space-y-8">
+            {rooms.named.map(([room, devs]) => (
+              <section key={room}>
+                <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground mb-3">
+                  {room}
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {devs.map(device => (
+                    <DeviceCard key={device.aid} device={device} />
+                  ))}
+                </div>
+              </section>
             ))}
+            {rooms.unassigned.length > 0 && (
+              <section>
+                {rooms.named.length > 0 && (
+                  <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground mb-3">
+                    Other
+                  </h2>
+                )}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {rooms.unassigned.map(device => (
+                    <DeviceCard key={device.aid} device={device} />
+                  ))}
+                </div>
+              </section>
+            )}
           </div>
         )}
 

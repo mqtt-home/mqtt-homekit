@@ -17,7 +17,9 @@ export interface Device {
   aid: number; // stable id — used as React key and SSE merge key
   name: string;
   kind: string;
+  room: string; // web-UI grouping (empty = ungrouped)
   state: Record<string, unknown>;
+  controls: string[]; // writable characteristic names (empty = read-only)
 }
 
 // Bridge info + pairing details.

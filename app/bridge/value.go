@@ -84,6 +84,15 @@ func boolPayload(s config.ValueSink, v bool) string {
 	return "false"
 }
 
+// stringPayload renders a string value for publishing, applying the optional
+// template.
+func stringPayload(s config.ValueSink, v string) string {
+	if s.Template != "" {
+		return strings.ReplaceAll(s.Template, "{{value}}", v)
+	}
+	return v
+}
+
 // numberPayload renders a number for publishing, applying Factor/Offset and an
 // optional template.
 func numberPayload(s config.ValueSink, v float64) string {

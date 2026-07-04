@@ -58,7 +58,7 @@ func (ws *WebServer) setupRoutes() {
 	ws.router.Use(middleware.Recoverer)
 	ws.router.Use(cors.Handler(cors.Options{
 		AllowedOrigins: []string{"*"},
-		AllowedMethods: []string{"GET", "OPTIONS"},
+		AllowedMethods: []string{"GET", "POST", "OPTIONS"},
 		AllowedHeaders: []string{"Accept", "Content-Type"},
 		MaxAge:         300,
 	}))
@@ -68,6 +68,7 @@ func (ws *WebServer) setupRoutes() {
 		r.Get("/livez", ws.liveness)
 		r.Get("/info", ws.info)
 		r.Get("/devices", ws.devices)
+		r.Post("/devices/{aid}/control", ws.control)
 		r.Get("/qr", ws.qr)
 		r.Get("/events", ws.handleSSE)
 	})
@@ -87,15 +88,17 @@ func (ws *WebServer) setupRoutes() {
 
 // deviceJSON is the per-accessory payload used by both REST and SSE.
 type deviceJSON struct {
-	Type  string         `json:"type"` // SSE event discriminator
-	AID   uint64         `json:"aid"`
-	Name  string         `json:"name"`
-	Kind  string         `json:"kind"` // accessory type (temperature, switch, ...)
-	State map[string]any `json:"state"`
+	Type     string         `json:"type"` // SSE event discriminator
+	AID      uint64         `json:"aid"`
+	Name     string         `json:"name"`
+	Kind     string         `json:"kind"` // accessory type (temperature, switch, ...)
+	Room     string         `json:"room"` // web-UI grouping (empty = ungrouped)
+	State    map[string]any `json:"state"`
+	Controls []string       `json:"controls"` // writable characteristic names
 }
 
 func toDeviceJSON(d *bridge.Device) deviceJSON {
-	return deviceJSON{Type: "device", AID: d.AID, Name: d.Name, Kind: d.Type, State: d.State()}
+	return deviceJSON{Type: "device", AID: d.AID, Name: d.Name, Kind: d.Type, Room: d.Room, State: d.State(), Controls: d.Controls()}
 }
 
 func (ws *WebServer) info(w http.ResponseWriter, _ *http.Request) {
@@ -116,6 +119,36 @@ func (ws *WebServer) devices(w http.ResponseWriter, _ *http.Request) {
 		out = append(out, toDeviceJSON(d))
 	}
 	writeJSON(w, out)
+}
+
+// control sets a writable characteristic on a device (web UI control panel).
+func (ws *WebServer) control(w http.ResponseWriter, r *http.Request) {
+	aid, err := strconv.ParseUint(chi.URLParam(r, "aid"), 10, 64)
+	if err != nil {
+		http.Error(w, "invalid aid", http.StatusBadRequest)
+		return
+	}
+	var req struct {
+		Name  string `json:"name"`
+		Value any    `json:"value"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Name == "" {
+		http.Error(w, "invalid body, expected {\"name\": ..., \"value\": ...}", http.StatusBadRequest)
+		return
+	}
+	for _, d := range ws.b.Devices() {
+		if d.AID != aid {
+			continue
+		}
+		if err := d.Control(req.Name, req.Value); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		logger.Info("Web control", "device", d.Name, "characteristic", req.Name, "value", req.Value)
+		writeJSON(w, toDeviceJSON(d))
+		return
+	}
+	http.Error(w, "device not found", http.StatusNotFound)
 }
 
 // qr renders the HomeKit pairing QR code as a PNG.

@@ -3,9 +3,12 @@ package config
 import (
 	"encoding/json"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/philipparndt/go-logger"
 	"github.com/philipparndt/mqtt-gateway/config"
+	yaml "sigs.k8s.io/yaml"
 )
 
 var cfg Config
@@ -52,6 +55,9 @@ type Accessory struct {
 	Type         string `json:"type"`
 	Manufacturer string `json:"manufacturer,omitempty"`
 	Model        string `json:"model,omitempty"`
+	// Room groups accessories in the web UI. HomeKit room assignment is
+	// controller-side data (done in the Home app) and cannot be set by a bridge.
+	Room string `json:"room,omitempty"`
 	// Topic is the default state/command topic used by a characteristic when it
 	// has no explicit entry in Get/Set.
 	Topic string `json:"topic,omitempty"`
@@ -133,6 +139,16 @@ func LoadConfig(file string) (Config, error) {
 	}
 
 	data = config.ReplaceEnvVariables(data)
+
+	// YAML configs are converted to JSON so the same structs (and the
+	// mqtt-gateway MQTTConfig json tags) work for both formats.
+	if ext := strings.ToLower(filepath.Ext(file)); ext == ".yaml" || ext == ".yml" {
+		data, err = yaml.YAMLToJSON(data)
+		if err != nil {
+			logger.Error("Converting YAML config", "error", err)
+			return Config{}, err
+		}
+	}
 
 	if err := json.Unmarshal(data, &cfg); err != nil {
 		logger.Error("Unmarshaling JSON", "error", err)

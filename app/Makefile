@@ -45,15 +45,15 @@ version: ## Print version/build metadata
 
 .PHONY: dev
 dev: build ## Build everything and run with the dev config
-	@$(BUILD_DIR)/$(BINARY_NAME) $(CONFIG_DIR)/config.json
+	@$(BUILD_DIR)/$(BINARY_NAME) $(CONFIG_DIR)/config.yaml
 
 .PHONY: run
 run: build ## Alias for dev
-	@$(BUILD_DIR)/$(BINARY_NAME) $(CONFIG_DIR)/config.json
+	@$(BUILD_DIR)/$(BINARY_NAME) $(CONFIG_DIR)/config.yaml
 
 .PHONY: run-test
 run-test: build ## Run with the small Büro-only test config
-	@$(BUILD_DIR)/$(BINARY_NAME) $(CONFIG_DIR)/config.test.json
+	@$(BUILD_DIR)/$(BINARY_NAME) $(CONFIG_DIR)/config.test.yaml
 
 .PHONY: dev-frontend
 dev-frontend: ## Run the frontend dev server (hot reload)
@@ -61,7 +61,7 @@ dev-frontend: ## Run the frontend dev server (hot reload)
 
 .PHONY: dev-backend
 dev-backend: build-backend ## Build and run only the backend
-	@$(BUILD_DIR)/$(BINARY_NAME) $(CONFIG_DIR)/config.json
+	@$(BUILD_DIR)/$(BINARY_NAME) $(CONFIG_DIR)/config.yaml
 
 .PHONY: docker
 docker: ## Build the Docker image

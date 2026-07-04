@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"hash/fnv"
 	"math"
+	"sort"
+	"strings"
 	"sync"
 
 	"github.com/brutella/hap/accessory"
@@ -17,11 +19,15 @@ import (
 type Device struct {
 	Name string
 	Type string
+	Room string
 	AID  uint64
 
 	a     *accessory.A
 	mu    sync.Mutex
 	state map[string]any
+	// controls maps a writable characteristic name to its setter. Populated
+	// during buildDevice only; read-only afterwards.
+	controls map[string]func(any) error
 }
 
 func (d *Device) record(key string, v any) {
@@ -41,6 +47,27 @@ func (d *Device) State() map[string]any {
 	return out
 }
 
+// Controls lists the writable characteristic names, sorted for stable output.
+func (d *Device) Controls() []string {
+	names := make([]string, 0, len(d.controls))
+	for n := range d.controls {
+		names = append(names, n)
+	}
+	sort.Strings(names)
+	return names
+}
+
+// Control sets a writable characteristic: it publishes the value to MQTT and
+// updates the HAP characteristic so paired HomeKit controllers are notified —
+// the same effect as a write from the Home app.
+func (d *Device) Control(name string, value any) error {
+	fn, ok := d.controls[name]
+	if !ok {
+		return fmt.Errorf("characteristic %q of %q is not writable", name, d.Name)
+	}
+	return fn(value)
+}
+
 // buildDevice constructs a HAP accessory of the configured type and wires its
 // characteristics to MQTT.
 func (b *Bridge) buildDevice(acc config.Accessory) (*Device, error) {
@@ -52,7 +79,7 @@ func (b *Bridge) buildDevice(acc config.Accessory) (*Device, error) {
 		Manufacturer: orDefault(acc.Manufacturer, "mqtt-homekit"),
 		Model:        orDefault(acc.Model, acc.Type),
 	}
-	d := &Device{Name: acc.Name, Type: acc.Type, state: map[string]any{}}
+	d := &Device{Name: acc.Name, Type: acc.Type, Room: acc.Room, state: map[string]any{}, controls: map[string]func(any) error{}}
 
 	switch acc.Type {
 	case "temperature":
@@ -180,6 +207,13 @@ func (b *Bridge) buildDevice(acc config.Accessory) (*Device, error) {
 		if sink, ok := acc.Sink("target_temperature"); ok {
 			b.writeFloat(d, "target_temperature", sink, t.TargetTemperature.Float)
 		}
+		// Optional heating mode (e.g. zigbee2mqtt system_mode: "off"/"heat"/"auto").
+		if hasChar(acc, "mode") {
+			b.readMode(d, acc.Source("mode"), t)
+			if sink, ok := acc.Sink("mode"); ok {
+				b.writeMode(d, sink, t)
+			}
+		}
 		d.a = a.A
 
 	default:
@@ -241,27 +275,163 @@ func (b *Bridge) readInt(d *Device, name string, src config.ValueSource, apply f
 }
 
 func (b *Bridge) writeBool(d *Device, name string, sink config.ValueSink, c *characteristic.Bool) {
-	c.OnValueRemoteUpdate(func(v bool) {
+	apply := func(v bool) {
 		b.publish(sink.Topic, boolPayload(sink, v), sink.Retain)
 		d.record(name, v)
 		b.broadcast(d)
-	})
+	}
+	c.OnValueRemoteUpdate(apply)
+	// Web-initiated writes additionally update the HAP characteristic so
+	// HomeKit controllers are notified (SetValue does not re-trigger the
+	// remote-update callback, so this cannot loop).
+	d.controls[name] = func(raw any) error {
+		v, ok := raw.(bool)
+		if !ok {
+			return fmt.Errorf("%s expects a boolean value", name)
+		}
+		c.SetValue(v)
+		apply(v)
+		return nil
+	}
 }
 
 func (b *Bridge) writeInt(d *Device, name string, sink config.ValueSink, c *characteristic.Int) {
-	c.OnValueRemoteUpdate(func(v int) {
+	apply := func(v int) {
 		b.publish(sink.Topic, numberPayload(sink, float64(v)), sink.Retain)
 		d.record(name, v)
+		b.broadcast(d)
+	}
+	c.OnValueRemoteUpdate(apply)
+	d.controls[name] = func(raw any) error {
+		f, ok := toFloat(raw)
+		if !ok {
+			return fmt.Errorf("%s expects a numeric value", name)
+		}
+		if err := c.SetValue(int(math.Round(f))); err != nil {
+			return err
+		}
+		// Publish the value HAP actually stored (SetValue clamps to the
+		// characteristic's min/max), keeping MQTT and HomeKit in sync.
+		apply(c.Value())
+		return nil
+	}
+}
+
+func (b *Bridge) writeFloat(d *Device, name string, sink config.ValueSink, c *characteristic.Float) {
+	apply := func(v float64) {
+		b.publish(sink.Topic, numberPayload(sink, v), sink.Retain)
+		d.record(name, v)
+		b.broadcast(d)
+	}
+	c.OnValueRemoteUpdate(apply)
+	d.controls[name] = func(raw any) error {
+		v, ok := toFloat(raw)
+		if !ok {
+			return fmt.Errorf("%s expects a numeric value", name)
+		}
+		// SetValue clamps to the characteristic's min/max; publish the value
+		// HAP actually stored, keeping MQTT and HomeKit in sync.
+		c.SetValue(v)
+		apply(c.Value())
+		return nil
+	}
+}
+
+// readMode maps an MQTT mode payload ("off"/"heat"/"cool"/"auto") onto the
+// thermostat's target and current heating/cooling states.
+func (b *Bridge) readMode(d *Device, src config.ValueSource, t *service.Thermostat) {
+	if src.Topic == "" {
+		return
+	}
+	b.subscribe(src.Topic, func(payload []byte) {
+		v, ok := modeToState(extract(payload, src.Path))
+		if !ok {
+			return
+		}
+		t.TargetHeatingCoolingState.SetValue(v)
+		t.CurrentHeatingCoolingState.SetValue(currentStateFor(v))
+		d.record("mode", stateToMode(v))
 		b.broadcast(d)
 	})
 }
 
-func (b *Bridge) writeFloat(d *Device, name string, sink config.ValueSink, c *characteristic.Float) {
-	c.OnValueRemoteUpdate(func(v float64) {
-		b.publish(sink.Topic, numberPayload(sink, v), sink.Retain)
-		d.record(name, v)
+// writeMode publishes HomeKit heating-mode changes to MQTT as a mode string
+// and exposes the "mode" web control.
+func (b *Bridge) writeMode(d *Device, sink config.ValueSink, t *service.Thermostat) {
+	apply := func(v int) {
+		b.publish(sink.Topic, stringPayload(sink, stateToMode(v)), sink.Retain)
+		t.CurrentHeatingCoolingState.SetValue(currentStateFor(v))
+		d.record("mode", stateToMode(v))
 		b.broadcast(d)
-	})
+	}
+	t.TargetHeatingCoolingState.OnValueRemoteUpdate(apply)
+	d.controls["mode"] = func(raw any) error {
+		s, ok := raw.(string)
+		if !ok {
+			return fmt.Errorf("mode expects a string value (off, heat, cool, auto)")
+		}
+		v, ok := modeToState(s)
+		if !ok {
+			return fmt.Errorf("unknown mode %q (off, heat, cool, auto)", s)
+		}
+		if err := t.TargetHeatingCoolingState.SetValue(v); err != nil {
+			return err
+		}
+		apply(v)
+		return nil
+	}
+}
+
+// modeToState maps a mode string to the HomeKit target heating/cooling state.
+func modeToState(mode string) (int, bool) {
+	switch strings.ToLower(strings.TrimSpace(mode)) {
+	case "off":
+		return characteristic.TargetHeatingCoolingStateOff, true
+	case "heat":
+		return characteristic.TargetHeatingCoolingStateHeat, true
+	case "cool":
+		return characteristic.TargetHeatingCoolingStateCool, true
+	case "auto":
+		return characteristic.TargetHeatingCoolingStateAuto, true
+	}
+	return 0, false
+}
+
+func stateToMode(v int) string {
+	switch v {
+	case characteristic.TargetHeatingCoolingStateOff:
+		return "off"
+	case characteristic.TargetHeatingCoolingStateCool:
+		return "cool"
+	case characteristic.TargetHeatingCoolingStateAuto:
+		return "auto"
+	default:
+		return "heat"
+	}
+}
+
+// currentStateFor derives the current heating/cooling state from a target
+// state (auto has no "current" equivalent; a heating-mode device reports heat).
+func currentStateFor(target int) int {
+	switch target {
+	case characteristic.TargetHeatingCoolingStateOff:
+		return characteristic.CurrentHeatingCoolingStateOff
+	case characteristic.TargetHeatingCoolingStateCool:
+		return characteristic.CurrentHeatingCoolingStateCool
+	default:
+		return characteristic.CurrentHeatingCoolingStateHeat
+	}
+}
+
+// toFloat converts the JSON-decoded control value to a float64.
+func toFloat(v any) (float64, bool) {
+	switch n := v.(type) {
+	case float64:
+		return n, true
+	case int:
+		return float64(n), true
+	}
+	return 0, false
 }
 
 // stableAID derives a stable accessory ID from the name so that reordering or
