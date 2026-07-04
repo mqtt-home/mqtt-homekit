@@ -35,6 +35,18 @@ func extract(payload []byte, path string) string {
 	return fmt.Sprint(cur)
 }
 
+// matchesFilter reports whether a payload passes the source's Match
+// conditions: every configured dot-path must extract to the expected value
+// (case-insensitive). No conditions = every message matches.
+func matchesFilter(s config.ValueSource, payload []byte) bool {
+	for path, want := range s.Match {
+		if !strings.EqualFold(extract(payload, path), want) {
+			return false
+		}
+	}
+	return true
+}
+
 // parseBool maps a payload string to a boolean using the source's On/Off
 // mappings, then a set of common truthy tokens, then a numeric != 0 fallback.
 func parseBool(s config.ValueSource, raw string) bool {

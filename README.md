@@ -126,6 +126,7 @@ Each accessory has an optional base `topic`, plus `get` (MQTT → HomeKit) and
 |-------|---------|
 | `topic` | topic to subscribe (falls back to the accessory `topic`) |
 | `path` | dot-path into a JSON payload (e.g. `state.temperature`); omit for a plain payload |
+| `match` | map of dot-path → expected value; the message is ignored unless **all** match (case-insensitive) |
 | `on` / `off` | payload strings mapped to boolean true/false (case-insensitive) |
 | `factor` / `offset` | numeric transform: `out = in*factor + offset` |
 
@@ -158,6 +159,16 @@ Examples:
 { "name": "Blind", "type": "window_covering",
   "get": { "position": { "topic": "blind/state", "path": "current_pos" } },
   "set": { "position": { "topic": "blind/cmd", "template": "{\"pos\":{{value}}}" } } }
+
+// stateless button pair as a switch: only short_release events are
+// considered (press/hold messages on the same topic are ignored)
+{ "name": "Terrace Light", "type": "switch",
+  "get": { "on": { "topic": "hue/button/terrace",
+                   "match": { "event": "short_release" },
+                   "path": "button", "on": "1", "off": "2" } },
+  "set": { "on": { "topic": "hue/button/terrace",
+                   "on": "{\"button\":1,\"event\":\"short_release\"}",
+                   "off": "{\"button\":2,\"event\":\"short_release\"}" } } }
 ```
 
 ## Web UI / API

@@ -75,3 +75,23 @@ func TestSourceSinkFallback(t *testing.T) {
 		t.Error("expected no sink without any topic")
 	}
 }
+
+func TestMatchesFilter(t *testing.T) {
+	press := []byte(`{"button":1,"event":"initial_press"}`)
+	release := []byte(`{"button":1,"event":"short_release"}`)
+	src := config.ValueSource{Match: map[string]string{"event": "short_release"}}
+
+	if matchesFilter(src, press) {
+		t.Error("initial_press should not match short_release filter")
+	}
+	if !matchesFilter(src, release) {
+		t.Error("short_release should match")
+	}
+	if !matchesFilter(config.ValueSource{}, press) {
+		t.Error("no filter should match everything")
+	}
+	multi := config.ValueSource{Match: map[string]string{"event": "short_release", "button": "2"}}
+	if matchesFilter(multi, release) {
+		t.Error("button 1 should not match button=2 condition")
+	}
+}

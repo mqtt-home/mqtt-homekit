@@ -86,6 +86,11 @@ type ValueSource struct {
 	// Path extracts a value from a JSON payload via dot notation (e.g.
 	// "state.temperature"). Empty means use the whole payload.
 	Path string `json:"path,omitempty"`
+	// Match filters messages: every key is a dot-path into the JSON payload
+	// and the message is ignored unless all extracted values equal the given
+	// strings (case-insensitive). Lets e.g. a button map only
+	// {"event":"short_release"} messages, skipping press/hold events.
+	Match map[string]string `json:"match,omitempty"`
 	// On/Off map a payload string to a boolean (case-insensitive). For sensors,
 	// "on" means active/open/detected.
 	On  string `json:"on,omitempty"`

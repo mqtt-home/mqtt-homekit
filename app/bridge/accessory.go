@@ -232,6 +232,9 @@ func (b *Bridge) readBool(d *Device, name string, src config.ValueSource, apply 
 		return
 	}
 	b.subscribe(src.Topic, func(payload []byte) {
+		if !matchesFilter(src, payload) {
+			return
+		}
 		v := parseBool(src, extract(payload, src.Path))
 		apply(v)
 		d.record(name, v)
@@ -246,6 +249,9 @@ func (b *Bridge) readBoolLabeled(d *Device, name string, src config.ValueSource,
 		return
 	}
 	b.subscribe(src.Topic, func(payload []byte) {
+		if !matchesFilter(src, payload) {
+			return
+		}
 		v := parseBool(src, extract(payload, src.Path))
 		apply(v)
 		if v {
@@ -262,6 +268,9 @@ func (b *Bridge) readFloat(d *Device, name string, src config.ValueSource, apply
 		return
 	}
 	b.subscribe(src.Topic, func(payload []byte) {
+		if !matchesFilter(src, payload) {
+			return
+		}
 		if v, ok := parseFloat(src, extract(payload, src.Path)); ok {
 			apply(v)
 			d.record(name, v)
@@ -344,6 +353,9 @@ func (b *Bridge) readMode(d *Device, src config.ValueSource, t *service.Thermost
 		return
 	}
 	b.subscribe(src.Topic, func(payload []byte) {
+		if !matchesFilter(src, payload) {
+			return
+		}
 		v, ok := modeToState(extract(payload, src.Path))
 		if !ok {
 			return
