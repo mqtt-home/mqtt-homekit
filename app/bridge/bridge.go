@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	dlog "github.com/brutella/dnssd/log"
@@ -31,6 +32,12 @@ type Bridge struct {
 	done      chan struct{} // closed when the HAP server has fully stopped
 	started   bool
 
+	// subs demultiplexes MQTT messages: the paho router keeps only one
+	// callback per topic filter, so characteristics sharing a topic (e.g. a
+	// thermostat's current + target temperature) must fan out here.
+	subsMu sync.Mutex
+	subs   map[string][]func([]byte)
+
 	onUpdate func(*Device)
 }
 
@@ -38,6 +45,7 @@ func New(cfg config.Config) *Bridge {
 	return &Bridge{
 		cfg:      cfg,
 		usedAIDs: map[uint64]bool{1: true}, // AID 1 is the bridge
+		subs:     map[string][]func([]byte){},
 	}
 }
 
@@ -60,7 +68,21 @@ func (b *Bridge) subscribe(topic string, cb func([]byte)) {
 	if topic == "" {
 		return
 	}
-	mqtt.Subscribe(topic, func(_ string, payload []byte) { cb(payload) })
+	b.subsMu.Lock()
+	b.subs[topic] = append(b.subs[topic], cb)
+	first := len(b.subs[topic]) == 1
+	b.subsMu.Unlock()
+	if !first {
+		return
+	}
+	mqtt.Subscribe(topic, func(_ string, payload []byte) {
+		b.subsMu.Lock()
+		cbs := append([]func([]byte){}, b.subs[topic]...)
+		b.subsMu.Unlock()
+		for _, fn := range cbs {
+			fn(payload)
+		}
+	})
 }
 
 func (b *Bridge) publish(topic, payload string, retain bool) {
