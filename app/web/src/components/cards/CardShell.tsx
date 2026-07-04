@@ -22,6 +22,21 @@ const KIND_LABELS: Record<string, string> = {
   thermostat: 'Thermostat',
   radiator: 'Thermostat',
   button: 'Button',
+  occupancy: 'Occupancy Sensor',
+  leak: 'Leak Sensor',
+  smoke: 'Smoke Sensor',
+  co: 'CO Sensor',
+  co2: 'CO₂ Sensor',
+  air_quality: 'Air Quality',
+  light: 'Light Sensor',
+  fan: 'Fan',
+  lock: 'Lock',
+  garage_door: 'Garage Door',
+  door: 'Door',
+  window: 'Window',
+  valve: 'Valve',
+  doorbell: 'Doorbell',
+  security_system: 'Security System',
 };
 
 export function kindLabel(kind: string): string {

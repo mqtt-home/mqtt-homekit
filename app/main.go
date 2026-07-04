@@ -50,6 +50,7 @@ func main() {
 		b.SetUpdateListener(func(d *bridge.Device) {
 			webServer.BroadcastDevice(d)
 		})
+		b.SetIdentifyListener(webServer.BroadcastIdentify)
 	}
 
 	if err := b.Start(); err != nil {

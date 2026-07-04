@@ -3,6 +3,7 @@ package bridge
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strconv"
 	"strings"
 	"sync"
@@ -39,6 +40,9 @@ type Bridge struct {
 	subs   map[string][]func([]byte)
 
 	onUpdate func(*Device)
+	// onIdentify is fired when a HomeKit controller asks an accessory to
+	// identify itself (name, room).
+	onIdentify func(string, string)
 }
 
 func New(cfg config.Config) *Bridge {
@@ -52,6 +56,19 @@ func New(cfg config.Config) *Bridge {
 // SetUpdateListener registers a callback fired whenever a device value changes
 // (used by the web UI).
 func (b *Bridge) SetUpdateListener(fn func(*Device)) { b.onUpdate = fn }
+
+// SetIdentifyListener registers a callback fired when HomeKit requests an
+// accessory to identify itself (e.g. the Identify button while pairing).
+func (b *Bridge) SetIdentifyListener(fn func(name, room string)) { b.onIdentify = fn }
+
+// identify logs an identify request and notifies the web UI, so the device
+// being placed in the Home app can be recognized.
+func (b *Bridge) identify(name, room string) {
+	logger.Info("Identify requested", "name", name, "room", room)
+	if b.onIdentify != nil {
+		b.onIdentify(name, room)
+	}
+}
 
 func (b *Bridge) Devices() []*Device { return b.devices }
 func (b *Bridge) BridgeName() string { return b.cfg.HomeKit.BridgeName }
@@ -149,6 +166,7 @@ func (b *Bridge) Start() error {
 		Firmware:     version.Version,
 	})
 	b.bridgeAcc.Id = 1
+	b.bridgeAcc.A.IdentifyFunc = func(*http.Request) { b.identify(b.cfg.HomeKit.BridgeName, "") }
 
 	store := hap.NewFsStore(b.cfg.HomeKit.StorageDir)
 	server, err := hap.NewServer(store, b.bridgeAcc.A, accs...)

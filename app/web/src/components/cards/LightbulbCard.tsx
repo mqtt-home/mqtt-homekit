@@ -23,15 +23,49 @@ export function LightbulbCard({ device }: { device: Device }) {
         ? <Toggle checked={on} onChange={v => set('on', v)} aria-label={`${device.name} on/off`} />
         : <Pill text={on ? 'On' : 'Off'} tone={on ? 'on' : 'off'} />}
     >
-      {can('brightness') && (
-        <Slider
-          label="Brightness"
-          value={brightness ?? 0}
-          min={1}
-          max={100}
-          onCommit={v => set('brightness', v)}
-          format={v => `${v} %`}
-        />
+      {(can('brightness') || can('color_temperature') || can('hue') || can('saturation')) && (
+        <div className="space-y-3">
+          {can('brightness') && (
+            <Slider
+              label="Brightness"
+              value={brightness ?? 0}
+              min={1}
+              max={100}
+              onCommit={v => set('brightness', v)}
+              format={v => `${v} %`}
+            />
+          )}
+          {can('color_temperature') && (
+            <Slider
+              label="Warmth"
+              value={num(state.color_temperature) ?? 140}
+              min={140}
+              max={500}
+              onCommit={v => set('color_temperature', v)}
+              format={v => `${v}`}
+            />
+          )}
+          {can('hue') && (
+            <Slider
+              label="Hue"
+              value={num(state.hue) ?? 0}
+              min={0}
+              max={360}
+              onCommit={v => set('hue', v)}
+              format={v => `${v}°`}
+            />
+          )}
+          {can('saturation') && (
+            <Slider
+              label="Saturation"
+              value={num(state.saturation) ?? 0}
+              min={0}
+              max={100}
+              onCommit={v => set('saturation', v)}
+              format={v => `${v} %`}
+            />
+          )}
+        </div>
       )}
     </CardShell>
   );

@@ -1,21 +1,22 @@
-import { Blinds, ArrowUpToLine, ArrowDownToLine } from 'lucide-react';
+import { Blinds, DoorClosed, PanelTop, ArrowUpToLine, ArrowDownToLine } from 'lucide-react';
 import type { Device } from '@/types/homekit';
 import { useDeviceControl } from '@/hooks/useDeviceControl';
 import { num } from '@/lib/format';
 import { Slider } from '@/components/ui/Slider';
 import { CardShell } from './CardShell';
 
-// Window covering: position slider with open/close shortcuts, plus an
-// optional tilt slider for venetian blinds.
+// Window covering / door / window: position slider with open/close
+// shortcuts, plus an optional tilt slider for venetian blinds.
 export function WindowCoveringCard({ device }: { device: Device }) {
   const { state, can, set } = useDeviceControl(device);
   const position = num(state.position);
   const tilt = num(state.tilt);
+  const icon = device.kind === 'door' ? DoorClosed : device.kind === 'window' ? PanelTop : Blinds;
 
   return (
     <CardShell
       device={device}
-      icon={Blinds}
+      icon={icon}
       iconClass={position !== undefined && position > 0 ? 'text-indigo-400' : 'text-indigo-500'}
       active={position !== undefined && position > 0}
       right={

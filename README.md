@@ -115,6 +115,27 @@ pprof:
 | `window_covering` (`blind`, `shade`) | Window covering | `position` (0–100), optional `tilt` (−90–90°) |
 | `thermostat` (`radiator`) | Thermostat | `current_temperature`, `target_temperature`, optional `mode` (`off`/`heat`/`cool`/`auto`) |
 | `button` | Stateless programmable switch | `single`/`double`/`long` event sources; the extracted value is the button index (`buttons: N` for multi-button devices) |
+| `occupancy` | Occupancy sensor | `occupancy` |
+| `leak` | Leak sensor | `leak` |
+| `smoke` | Smoke sensor | `smoke` |
+| `co` / `co2` | CO / CO₂ sensor | `co`/`co2` (detected), optional `level` |
+| `air_quality` | Air quality sensor | `quality` (1–5), optional `pm25` |
+| `light` | Light sensor | `lux` |
+| `fan` | Fan | `on`, optional `speed` (0–100) |
+| `lock` | Lock mechanism | `locked` |
+| `garage_door` | Garage door opener | `open`, optional `obstruction` |
+| `door` / `window` | Door / window | `position` (0–100) |
+| `valve` | Valve | `on` |
+| `doorbell` | Doorbell | `single`/`double`/`long` ring sources |
+| `security_system` | Security system | `state` (`off`/`home`/`away`/`night`/`triggered`) |
+
+`lightbulb` additionally supports `hue` (0–360), `saturation` (0–100) and
+`color_temperature` (mireds 140–500) for colored lights.
+
+A rendered example of every type, including its dashboard card, is on the
+project page: <https://mqtt-home.github.io/mqtt-homekit/>. Not mapped (not a
+natural fit for MQTT): cameras, televisions, speakers, air purifiers and
+heater-cooler/humidifier appliances.
 
 Every accessory type additionally supports an optional `battery`
 characteristic (0–100). It adds a HomeKit battery service (low-battery status

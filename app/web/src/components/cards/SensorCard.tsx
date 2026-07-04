@@ -1,5 +1,6 @@
 import {
   Thermometer, Droplet, DoorOpen, DoorClosed, Radar, ShieldCheck, HelpCircle,
+  UserCheck, UserX, Droplets, Flame, Wind, CloudFog, Leaf, Sun,
 } from 'lucide-react';
 import type { Device } from '@/types/homekit';
 import { isWaiting } from '@/types/homekit';
@@ -57,6 +58,79 @@ function render(device: Device): Rendered {
         value: <Pill text={detected ? 'Detected' : 'Clear'} tone={detected ? 'alert' : 'off'} />,
       };
     }
+    case 'occupancy': {
+      const occupied = s.occupancy === 'occupied';
+      return {
+        icon: occupied ? UserCheck : UserX,
+        iconClass: occupied ? 'text-amber-500' : 'text-muted-foreground',
+        value: <Pill text={occupied ? 'Occupied' : 'Vacant'} tone={occupied ? 'alert' : 'off'} />,
+      };
+    }
+    case 'leak': {
+      const leak = s.leak === 'leak';
+      return {
+        icon: Droplets,
+        iconClass: leak ? 'text-red-500' : 'text-muted-foreground',
+        value: <Pill text={leak ? 'Leak!' : 'Dry'} tone={leak ? 'alert' : 'off'} />,
+      };
+    }
+    case 'smoke': {
+      const smoke = s.smoke === 'smoke';
+      return {
+        icon: Flame,
+        iconClass: smoke ? 'text-red-500' : 'text-muted-foreground',
+        value: <Pill text={smoke ? 'Smoke!' : 'Clear'} tone={smoke ? 'alert' : 'off'} />,
+      };
+    }
+    case 'co':
+    case 'co2': {
+      const detected = s[device.kind] === 'detected';
+      const level = num(s.level);
+      return {
+        icon: device.kind === 'co' ? Wind : CloudFog,
+        iconClass: detected ? 'text-red-500' : 'text-muted-foreground',
+        value: (
+          <div className="flex items-center gap-2">
+            {level !== undefined && (
+              <span className="text-sm text-muted-foreground tabular-nums">
+                {Math.round(level)} {device.kind === 'co2' ? 'ppm' : ''}
+              </span>
+            )}
+            <Pill text={detected ? 'Detected!' : 'OK'} tone={detected ? 'alert' : 'off'} />
+          </div>
+        ),
+      };
+    }
+    case 'air_quality': {
+      const q = num(s.quality) ?? 0;
+      const labels = ['Unknown', 'Excellent', 'Good', 'Fair', 'Inferior', 'Poor'];
+      const tone = q >= 4 ? 'alert' : q >= 1 && q <= 2 ? 'on' : 'neutral';
+      const pm25 = num(s.pm25);
+      return {
+        icon: Leaf,
+        iconClass: q >= 4 ? 'text-amber-500' : 'text-green-500',
+        value: (
+          <div className="flex items-center gap-2">
+            {pm25 !== undefined && (
+              <span className="text-sm text-muted-foreground tabular-nums">{pm25.toFixed(0)} µg/m³</span>
+            )}
+            <Pill text={labels[Math.min(q, 5)]} tone={tone} />
+          </div>
+        ),
+      };
+    }
+    case 'light': {
+      const lux = num(s.lux);
+      return {
+        icon: Sun,
+        iconClass: 'text-yellow-500',
+        value: (
+          <span className="text-2xl font-semibold tabular-nums">
+            {lux === undefined ? '—' : `${lux < 10 ? lux.toFixed(1) : Math.round(lux)} lx`}
+          </span>
+        ),
+      };
+    }
     default:
       return {
         icon: HelpCircle,
@@ -71,7 +145,12 @@ export function SensorCard({ device }: { device: Device }) {
   const { icon, iconClass, value } = render(device);
   const active =
     (device.kind === 'contact' && device.state.contact === 'open') ||
-    (device.kind === 'motion' && device.state.motion === 'detected');
+    (device.kind === 'motion' && device.state.motion === 'detected') ||
+    (device.kind === 'occupancy' && device.state.occupancy === 'occupied') ||
+    (device.kind === 'leak' && device.state.leak === 'leak') ||
+    (device.kind === 'smoke' && device.state.smoke === 'smoke') ||
+    (device.kind === 'co' && device.state.co === 'detected') ||
+    (device.kind === 'co2' && device.state.co2 === 'detected');
   return (
     <CardShell
       device={device}

@@ -2,9 +2,17 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import type { Device } from '@/types/homekit';
 import { API_BASE } from '@/lib/api';
 
+export interface IdentifyEvent {
+  name: string;
+  room: string;
+  at: number; // client timestamp, forces re-render on repeat identifies
+}
+
 interface SSEHookReturn {
   // Live accessory state, keyed by aid.
   devices: Record<number, Device>;
+  // Last HomeKit identify request (pairing flow).
+  identify: IdentifyEvent | null;
   isConnected: boolean;
   error: string | null;
   reconnect: () => void;
@@ -12,6 +20,7 @@ interface SSEHookReturn {
 
 export function useSSE(): SSEHookReturn {
   const [devices, setDevices] = useState<Record<number, Device>>({});
+  const [identify, setIdentify] = useState<IdentifyEvent | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
@@ -45,6 +54,8 @@ export function useSSE(): SSEHookReturn {
           const data = JSON.parse(event.data);
           if (data.type === 'device' && typeof data.aid === 'number') {
             setDevices(prev => ({ ...prev, [data.aid]: data as Device }));
+          } else if (data.type === 'identify' && typeof data.name === 'string') {
+            setIdentify({ name: data.name, room: data.room ?? '', at: Date.now() });
           }
         } catch {
           setError('Failed to parse server data');
@@ -78,5 +89,5 @@ export function useSSE(): SSEHookReturn {
     connect();
   }, [connect]);
 
-  return { devices, isConnected, error, reconnect };
+  return { devices, identify, isConnected, error, reconnect };
 }

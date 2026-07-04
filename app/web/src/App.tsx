@@ -6,6 +6,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { DeviceCard } from '@/components/DeviceCard';
 import { CategoryFilter, matchesCategory, type CategoryKey } from '@/components/CategoryFilter';
 import { BatteryOverview } from '@/components/BatteryOverview';
+import { IdentifyModal } from '@/components/IdentifyModal';
 import { cn } from '@/lib/utils';
 import type { Device, Info } from '@/types/homekit';
 
@@ -14,7 +15,7 @@ export function App() {
   const [devices, setDevices] = useState<Device[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [category, setCategory] = useState<CategoryKey>('all');
-  const { devices: liveStates, isConnected, error, reconnect } = useSSE();
+  const { devices: liveStates, identify, isConnected, error, reconnect } = useSSE();
   const { theme, toggleTheme } = useTheme();
 
   const load = () => {
@@ -50,6 +51,7 @@ export function App() {
 
   return (
     <div className="min-h-screen bg-background p-4 md:p-8">
+      <IdentifyModal identify={identify} />
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <header className="flex items-center justify-between mb-6 gap-3">

@@ -1,9 +1,9 @@
 import type { ComponentType } from 'react';
-import { LayoutGrid, Gauge, Power, Lightbulb, Blinds, ThermometerSun } from 'lucide-react';
+import { LayoutGrid, Gauge, Power, Lightbulb, Blinds, ThermometerSun, Shield } from 'lucide-react';
 import type { Device } from '@/types/homekit';
 import { cn } from '@/lib/utils';
 
-export type CategoryKey = 'all' | 'sensors' | 'switches' | 'lights' | 'covers' | 'thermostats';
+export type CategoryKey = 'all' | 'sensors' | 'switches' | 'lights' | 'covers' | 'climate' | 'security';
 
 interface Category {
   key: CategoryKey;
@@ -14,11 +14,12 @@ interface Category {
 
 const CATEGORIES: Category[] = [
   { key: 'all', label: 'All', icon: LayoutGrid, kinds: [] },
-  { key: 'sensors', label: 'Sensors', icon: Gauge, kinds: ['temperature', 'humidity', 'temperature_humidity', 'contact', 'motion'] },
-  { key: 'switches', label: 'Switches', icon: Power, kinds: ['switch', 'outlet', 'button'] },
+  { key: 'sensors', label: 'Sensors', icon: Gauge, kinds: ['temperature', 'humidity', 'temperature_humidity', 'contact', 'motion', 'occupancy', 'leak', 'smoke', 'co', 'co2', 'air_quality', 'light'] },
+  { key: 'switches', label: 'Switches', icon: Power, kinds: ['switch', 'outlet', 'button', 'valve'] },
   { key: 'lights', label: 'Lights', icon: Lightbulb, kinds: ['lightbulb'] },
-  { key: 'covers', label: 'Covers', icon: Blinds, kinds: ['window_covering', 'blind', 'shade'] },
-  { key: 'thermostats', label: 'Thermostats', icon: ThermometerSun, kinds: ['thermostat', 'radiator'] },
+  { key: 'covers', label: 'Covers', icon: Blinds, kinds: ['window_covering', 'blind', 'shade', 'door', 'window', 'garage_door'] },
+  { key: 'climate', label: 'Climate', icon: ThermometerSun, kinds: ['thermostat', 'radiator', 'fan'] },
+  { key: 'security', label: 'Security', icon: Shield, kinds: ['lock', 'security_system', 'doorbell'] },
 ];
 
 export function matchesCategory(device: Device, key: CategoryKey): boolean {

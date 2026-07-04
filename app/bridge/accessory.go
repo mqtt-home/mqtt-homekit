@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"hash/fnv"
 	"math"
+	"net/http"
 	"sort"
 	"strings"
 	"sync"
@@ -165,6 +166,32 @@ func (b *Bridge) buildDevice(acc config.Accessory) (*Device, error) {
 				b.writeInt(d, "brightness", sink, br.Int)
 			}
 		}
+		// Optional color support: hue (0-360), saturation (0-100) and/or
+		// color temperature (mireds, 140-500).
+		if hasChar(acc, "hue") {
+			h := characteristic.NewHue()
+			a.Lightbulb.AddC(h.C)
+			b.readFloat(d, "hue", acc.Source("hue"), func(v float64) { h.SetValue(v) })
+			if sink, ok := acc.Sink("hue"); ok {
+				b.writeFloat(d, "hue", sink, h.Float)
+			}
+		}
+		if hasChar(acc, "saturation") {
+			sat := characteristic.NewSaturation()
+			a.Lightbulb.AddC(sat.C)
+			b.readFloat(d, "saturation", acc.Source("saturation"), func(v float64) { sat.SetValue(v) })
+			if sink, ok := acc.Sink("saturation"); ok {
+				b.writeFloat(d, "saturation", sink, sat.Float)
+			}
+		}
+		if hasChar(acc, "color_temperature") {
+			ct := characteristic.NewColorTemperature()
+			a.Lightbulb.AddC(ct.C)
+			b.readInt(d, "color_temperature", acc.Source("color_temperature"), func(v int) { ct.SetValue(v) })
+			if sink, ok := acc.Sink("color_temperature"); ok {
+				b.writeInt(d, "color_temperature", sink, ct.Int)
+			}
+		}
 		d.a = a.A
 
 	case "window_covering", "blind", "shade":
@@ -219,6 +246,259 @@ func (b *Bridge) buildDevice(acc config.Accessory) (*Device, error) {
 			}
 		}
 		d.a = a.A
+
+	case "occupancy":
+		a := accessory.New(info, accessory.TypeSensor)
+		s := service.NewOccupancySensor()
+		a.AddS(s.S)
+		b.readBoolLabeled(d, "occupancy", acc.Source("occupancy"), "occupied", "vacant", func(v bool) {
+			s.OccupancyDetected.SetValue(boolToInt(v))
+		})
+		d.a = a
+
+	case "leak":
+		a := accessory.New(info, accessory.TypeSensor)
+		s := service.NewLeakSensor()
+		a.AddS(s.S)
+		b.readBoolLabeled(d, "leak", acc.Source("leak"), "leak", "dry", func(v bool) {
+			s.LeakDetected.SetValue(boolToInt(v))
+		})
+		d.a = a
+
+	case "smoke":
+		a := accessory.New(info, accessory.TypeSensor)
+		s := service.NewSmokeSensor()
+		a.AddS(s.S)
+		b.readBoolLabeled(d, "smoke", acc.Source("smoke"), "smoke", "clear", func(v bool) {
+			s.SmokeDetected.SetValue(boolToInt(v))
+		})
+		d.a = a
+
+	case "co", "co2":
+		a := accessory.New(info, accessory.TypeSensor)
+		var detected *characteristic.Int
+		var level *characteristic.Float
+		if acc.Type == "co" {
+			s := service.NewCarbonMonoxideSensor()
+			a.AddS(s.S)
+			detected = s.CarbonMonoxideDetected.Int
+			if hasChar(acc, "level") {
+				l := characteristic.NewCarbonMonoxideLevel()
+				s.AddC(l.C)
+				level = l.Float
+			}
+		} else {
+			s := service.NewCarbonDioxideSensor()
+			a.AddS(s.S)
+			detected = s.CarbonDioxideDetected.Int
+			if hasChar(acc, "level") {
+				l := characteristic.NewCarbonDioxideLevel()
+				s.AddC(l.C)
+				level = l.Float
+			}
+		}
+		b.readBoolLabeled(d, acc.Type, acc.Source(acc.Type), "detected", "clear", func(v bool) {
+			detected.SetValue(boolToInt(v))
+		})
+		if level != nil {
+			b.readFloat(d, "level", acc.Source("level"), func(v float64) { level.SetValue(v) })
+		}
+		d.a = a
+
+	case "air_quality":
+		a := accessory.New(info, accessory.TypeSensor)
+		s := service.NewAirQualitySensor()
+		a.AddS(s.S)
+		b.readInt(d, "quality", acc.Source("quality"), func(v int) {
+			s.AirQuality.SetValue(min(max(v, characteristic.AirQualityUnknown), characteristic.AirQualityPoor))
+		})
+		if hasChar(acc, "pm25") {
+			pm := characteristic.NewPM2_5Density()
+			s.AddC(pm.C)
+			b.readFloat(d, "pm25", acc.Source("pm25"), func(v float64) { pm.SetValue(v) })
+		}
+		d.a = a
+
+	case "light":
+		a := accessory.New(info, accessory.TypeSensor)
+		s := service.NewLightSensor()
+		a.AddS(s.S)
+		b.readFloat(d, "lux", acc.Source("lux"), func(v float64) {
+			s.CurrentAmbientLightLevel.SetValue(v)
+		})
+		d.a = a
+
+	case "fan":
+		a := accessory.New(info, accessory.TypeFan)
+		f := service.NewFanV2()
+		a.AddS(f.S)
+		b.readBool(d, "on", acc.Source("on"), func(v bool) { f.Active.SetValue(boolToInt(v)) })
+		if sink, ok := acc.Sink("on"); ok {
+			b.writeIntBool(d, "on", sink, f.Active.Int, characteristic.ActiveActive, characteristic.ActiveInactive, nil)
+		}
+		if hasChar(acc, "speed") {
+			sp := characteristic.NewRotationSpeed()
+			f.AddC(sp.C)
+			b.readFloat(d, "speed", acc.Source("speed"), func(v float64) { sp.SetValue(v) })
+			if sink, ok := acc.Sink("speed"); ok {
+				b.writeFloat(d, "speed", sink, sp.Float)
+			}
+		}
+		d.a = a
+
+	case "lock":
+		a := accessory.New(info, accessory.TypeDoorLock)
+		l := service.NewLockMechanism()
+		a.AddS(l.S)
+		b.readBoolLabeled(d, "locked", acc.Source("locked"), "locked", "unlocked", func(v bool) {
+			state := characteristic.LockCurrentStateUnsecured
+			if v {
+				state = characteristic.LockCurrentStateSecured
+			}
+			l.LockCurrentState.SetValue(state)
+			l.LockTargetState.SetValue(state)
+		})
+		if sink, ok := acc.Sink("locked"); ok {
+			b.writeIntBool(d, "locked", sink, l.LockTargetState.Int,
+				characteristic.LockCurrentStateSecured, characteristic.LockCurrentStateUnsecured,
+				func(v bool) { l.LockCurrentState.SetValue(boolToInt(v)) })
+		}
+		d.a = a
+
+	case "garage_door":
+		a := accessory.New(info, accessory.TypeGarageDoorOpener)
+		g := service.NewGarageDoorOpener()
+		a.AddS(g.S)
+		b.readBoolLabeled(d, "open", acc.Source("open"), "open", "closed", func(v bool) {
+			state := characteristic.CurrentDoorStateClosed
+			if v {
+				state = characteristic.CurrentDoorStateOpen
+			}
+			g.CurrentDoorState.SetValue(state)
+			g.TargetDoorState.SetValue(state)
+		})
+		if sink, ok := acc.Sink("open"); ok {
+			// HomeKit door states are inverted booleans: open = 0, closed = 1.
+			b.writeIntBool(d, "open", sink, g.TargetDoorState.Int,
+				characteristic.CurrentDoorStateOpen, characteristic.CurrentDoorStateClosed,
+				func(v bool) {
+					state := characteristic.CurrentDoorStateClosed
+					if v {
+						state = characteristic.CurrentDoorStateOpen
+					}
+					g.CurrentDoorState.SetValue(state)
+				})
+		}
+		if hasChar(acc, "obstruction") {
+			b.readBoolLabeled(d, "obstruction", acc.Source("obstruction"), "obstructed", "clear", func(v bool) {
+				g.ObstructionDetected.SetValue(v)
+			})
+		}
+		d.a = a
+
+	case "door", "window":
+		var cur *characteristic.CurrentPosition
+		var tgt *characteristic.TargetPosition
+		var pos *characteristic.PositionState
+		var a *accessory.A
+		if acc.Type == "door" {
+			ad := accessory.New(info, accessory.TypeDoor)
+			s := service.NewDoor()
+			ad.AddS(s.S)
+			cur, tgt, pos, a = s.CurrentPosition, s.TargetPosition, s.PositionState, ad
+		} else {
+			aw := accessory.New(info, accessory.TypeWindow)
+			s := service.NewWindow()
+			aw.AddS(s.S)
+			cur, tgt, pos, a = s.CurrentPosition, s.TargetPosition, s.PositionState, aw
+		}
+		b.readInt(d, "position", acc.Source("position"), func(v int) {
+			cur.SetValue(v)
+			tgt.SetValue(v)
+			pos.SetValue(characteristic.PositionStateStopped)
+		})
+		if sink, ok := acc.Sink("position"); ok {
+			b.writeInt(d, "position", sink, tgt.Int)
+		}
+		d.a = a
+
+	case "valve":
+		a := accessory.New(info, accessory.TypeFaucet)
+		v := service.NewValve()
+		a.AddS(v.S)
+		v.ValveType.SetValue(0) // generic valve
+		b.readBool(d, "on", acc.Source("on"), func(on bool) {
+			v.Active.SetValue(boolToInt(on))
+			v.InUse.SetValue(boolToInt(on))
+		})
+		if sink, ok := acc.Sink("on"); ok {
+			b.writeIntBool(d, "on", sink, v.Active.Int, characteristic.ActiveActive, characteristic.ActiveInactive,
+				func(on bool) { v.InUse.SetValue(boolToInt(on)) })
+		}
+		d.a = a
+
+	case "doorbell":
+		a := accessory.New(info, accessory.TypeVideoDoorbell)
+		db := service.NewDoorbell()
+		a.AddS(db.S)
+		ring := func(event int, eventLabel string) func(int) {
+			return func(int) {
+				db.ProgrammableSwitchEvent.SetValue(event)
+				d.record("last_event", eventLabel)
+				b.broadcast(d)
+			}
+		}
+		b.readButton(d, acc.Source("single"), ring(characteristic.ProgrammableSwitchEventSinglePress, "ring"))
+		b.readButton(d, acc.Source("double"), ring(characteristic.ProgrammableSwitchEventDoublePress, "double ring"))
+		b.readButton(d, acc.Source("long"), ring(characteristic.ProgrammableSwitchEventLongPress, "long ring"))
+		d.a = a
+
+	case "security_system":
+		a := accessory.New(info, accessory.TypeSecuritySystem)
+		s := service.NewSecuritySystem()
+		a.AddS(s.S)
+		applyState := func(v int) {
+			s.SecuritySystemTargetState.SetValue(min(v, characteristic.SecuritySystemTargetStateDisarm))
+			s.SecuritySystemCurrentState.SetValue(v)
+			d.record("state", securityStateName(v))
+			b.broadcast(d)
+		}
+		src := acc.Source("state")
+		if src.Topic != "" {
+			b.subscribe(src.Topic, func(payload []byte) {
+				if !matchesFilter(src, payload) {
+					return
+				}
+				if v, ok := securityStateValue(extract(payload, src.Path)); ok {
+					applyState(v)
+				}
+			})
+		}
+		if sink, ok := acc.Sink("state"); ok {
+			apply := func(v int) {
+				b.publish(sink.Topic, stringPayload(sink, securityStateName(v)), sink.Retain)
+				s.SecuritySystemCurrentState.SetValue(v)
+				d.record("state", securityStateName(v))
+				b.broadcast(d)
+			}
+			s.SecuritySystemTargetState.OnValueRemoteUpdate(apply)
+			d.controls["state"] = func(raw any) error {
+				str, ok := raw.(string)
+				if !ok {
+					return fmt.Errorf("state expects a string value (home, away, night, off)")
+				}
+				v, ok := securityStateValue(str)
+				if !ok || v > characteristic.SecuritySystemTargetStateDisarm {
+					return fmt.Errorf("unknown security state %q (home, away, night, off)", str)
+				}
+				if err := s.SecuritySystemTargetState.SetValue(v); err != nil {
+					return err
+				}
+				apply(v)
+				return nil
+			}
+		}
+		d.a = a
 
 	case "button":
 		// Stateless programmable switch: one service per physical button.
@@ -280,6 +560,8 @@ func (b *Bridge) buildDevice(acc config.Accessory) (*Device, error) {
 			bs.StatusLowBattery.SetValue(low)
 		})
 	}
+
+	d.a.IdentifyFunc = func(*http.Request) { b.identify(d.Name, d.Room) }
 
 	d.a.Id = b.stableAID(acc.Name)
 	d.AID = d.a.Id
@@ -513,6 +795,76 @@ func currentStateFor(target int) int {
 		return characteristic.CurrentHeatingCoolingStateCool
 	default:
 		return characteristic.CurrentHeatingCoolingStateHeat
+	}
+}
+
+// writeIntBool wires a HomeKit int characteristic with boolean semantics
+// (Active, LockTargetState, TargetDoorState, ...) to a boolean MQTT sink and
+// web control. trueVal/falseVal are the characteristic values for on/off;
+// mirror (optional) updates a paired current-state characteristic.
+func (b *Bridge) writeIntBool(d *Device, name string, sink config.ValueSink, c *characteristic.Int, trueVal, falseVal int, mirror func(bool)) {
+	apply := func(v bool) {
+		b.publish(sink.Topic, boolPayload(sink, v), sink.Retain)
+		if mirror != nil {
+			mirror(v)
+		}
+		d.record(name, v)
+		b.broadcast(d)
+	}
+	c.OnValueRemoteUpdate(func(iv int) { apply(iv == trueVal) })
+	d.controls[name] = func(raw any) error {
+		v, ok := raw.(bool)
+		if !ok {
+			return fmt.Errorf("%s expects a boolean value", name)
+		}
+		val := falseVal
+		if v {
+			val = trueVal
+		}
+		if err := c.SetValue(val); err != nil {
+			return err
+		}
+		apply(v)
+		return nil
+	}
+}
+
+func boolToInt(v bool) int {
+	if v {
+		return 1
+	}
+	return 0
+}
+
+// securityStateValue maps a payload string to a HomeKit security-system state.
+func securityStateValue(s string) (int, bool) {
+	switch strings.ToLower(strings.TrimSpace(s)) {
+	case "home", "stay":
+		return characteristic.SecuritySystemCurrentStateStayArm, true
+	case "away":
+		return characteristic.SecuritySystemCurrentStateAwayArm, true
+	case "night":
+		return characteristic.SecuritySystemCurrentStateNightArm, true
+	case "off", "disarm", "disarmed":
+		return characteristic.SecuritySystemCurrentStateDisarmed, true
+	case "triggered", "alarm":
+		return characteristic.SecuritySystemCurrentStateAlarmTriggered, true
+	}
+	return 0, false
+}
+
+func securityStateName(v int) string {
+	switch v {
+	case characteristic.SecuritySystemCurrentStateStayArm:
+		return "home"
+	case characteristic.SecuritySystemCurrentStateAwayArm:
+		return "away"
+	case characteristic.SecuritySystemCurrentStateNightArm:
+		return "night"
+	case characteristic.SecuritySystemCurrentStateAlarmTriggered:
+		return "triggered"
+	default:
+		return "off"
 	}
 }
 

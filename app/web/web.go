@@ -211,7 +211,20 @@ func (ws *WebServer) BroadcastDevice(d *bridge.Device) {
 	if err != nil {
 		return
 	}
-	msg := string(message)
+	ws.broadcast(string(message))
+}
+
+// BroadcastIdentify pushes a HomeKit identify request to all SSE clients so
+// the dashboard can point out which device is being placed in the Home app.
+func (ws *WebServer) BroadcastIdentify(name, room string) {
+	message, err := json.Marshal(map[string]string{"type": "identify", "name": name, "room": room})
+	if err != nil {
+		return
+	}
+	ws.broadcast(string(message))
+}
+
+func (ws *WebServer) broadcast(msg string) {
 	ws.sseClientsMu.RLock()
 	for _, c := range ws.sseClients {
 		select {
