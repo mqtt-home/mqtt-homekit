@@ -21,6 +21,7 @@ const KIND_LABELS: Record<string, string> = {
   shade: 'Window Covering',
   thermostat: 'Thermostat',
   radiator: 'Thermostat',
+  button: 'Button',
 };
 
 export function kindLabel(kind: string): string {

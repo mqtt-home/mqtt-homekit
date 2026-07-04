@@ -15,7 +15,7 @@ interface Category {
 const CATEGORIES: Category[] = [
   { key: 'all', label: 'All', icon: LayoutGrid, kinds: [] },
   { key: 'sensors', label: 'Sensors', icon: Gauge, kinds: ['temperature', 'humidity', 'temperature_humidity', 'contact', 'motion'] },
-  { key: 'switches', label: 'Switches', icon: Power, kinds: ['switch', 'outlet'] },
+  { key: 'switches', label: 'Switches', icon: Power, kinds: ['switch', 'outlet', 'button'] },
   { key: 'lights', label: 'Lights', icon: Lightbulb, kinds: ['lightbulb'] },
   { key: 'covers', label: 'Covers', icon: Blinds, kinds: ['window_covering', 'blind', 'shade'] },
   { key: 'thermostats', label: 'Thermostats', icon: ThermometerSun, kinds: ['thermostat', 'radiator'] },

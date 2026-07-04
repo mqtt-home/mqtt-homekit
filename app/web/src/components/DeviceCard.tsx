@@ -4,6 +4,7 @@ import { SwitchCard } from './cards/SwitchCard';
 import { LightbulbCard } from './cards/LightbulbCard';
 import { WindowCoveringCard } from './cards/WindowCoveringCard';
 import { ThermostatCard } from './cards/ThermostatCard';
+import { ButtonCard } from './cards/ButtonCard';
 
 // Dispatches to the card component for the accessory kind. Sensors are
 // read-only; the other cards expose their writable characteristics.
@@ -21,6 +22,8 @@ export function DeviceCard({ device }: { device: Device }) {
     case 'thermostat':
     case 'radiator':
       return <ThermostatCard device={device} />;
+    case 'button':
+      return <ButtonCard device={device} />;
     default:
       return <SensorCard device={device} />;
   }

@@ -220,6 +220,47 @@ func (b *Bridge) buildDevice(acc config.Accessory) (*Device, error) {
 		}
 		d.a = a.A
 
+	case "button":
+		// Stateless programmable switch: one service per physical button.
+		// Event sources ("single"/"double"/"long") extract the button index
+		// from the payload; non-numeric or missing values mean button 1.
+		a := accessory.New(info, accessory.TypeProgrammableSwitch)
+		n := acc.Buttons
+		if n <= 0 {
+			n = 1
+		}
+		if n > 1 {
+			label := service.NewServiceLabel()
+			label.ServiceLabelNamespace.SetValue(characteristic.ServiceLabelNamespaceArabicNumerals)
+			a.AddS(label.S)
+		}
+		switches := make([]*service.StatelessProgrammableSwitch, n)
+		for i := range switches {
+			sw := service.NewStatelessProgrammableSwitch()
+			if n > 1 {
+				idx := characteristic.NewServiceLabelIndex()
+				idx.SetValue(i + 1)
+				sw.AddC(idx.C)
+			}
+			a.AddS(sw.S)
+			switches[i] = sw
+		}
+		fire := func(event int, eventLabel string) func(int) {
+			return func(btn int) {
+				if btn < 1 || btn > n {
+					return
+				}
+				switches[btn-1].ProgrammableSwitchEvent.SetValue(event)
+				d.record("last_button", btn)
+				d.record("last_event", eventLabel)
+				b.broadcast(d)
+			}
+		}
+		b.readButton(d, acc.Source("single"), fire(characteristic.ProgrammableSwitchEventSinglePress, "single"))
+		b.readButton(d, acc.Source("double"), fire(characteristic.ProgrammableSwitchEventDoublePress, "double"))
+		b.readButton(d, acc.Source("long"), fire(characteristic.ProgrammableSwitchEventLongPress, "long"))
+		d.a = a
+
 	default:
 		return nil, fmt.Errorf("unknown accessory type %q (accessory %q)", acc.Type, acc.Name)
 	}
@@ -301,6 +342,26 @@ func (b *Bridge) readFloat(d *Device, name string, src config.ValueSource, apply
 
 func (b *Bridge) readInt(d *Device, name string, src config.ValueSource, apply func(int)) {
 	b.readFloat(d, name, src, func(v float64) { apply(int(math.Round(v))) })
+}
+
+// readButton fires with the button index extracted from a matching message;
+// payloads without a numeric index address button 1.
+func (b *Bridge) readButton(_ *Device, src config.ValueSource, fire func(int)) {
+	if src.Topic == "" {
+		return
+	}
+	b.subscribe(src.Topic, func(payload []byte) {
+		if !matchesFilter(src, payload) {
+			return
+		}
+		btn := 1
+		if raw := extract(payload, src.Path); raw != "" {
+			if f, ok := parseFloat(src, raw); ok {
+				btn = int(math.Round(f))
+			}
+		}
+		fire(btn)
+	})
 }
 
 func (b *Bridge) writeBool(d *Device, name string, sink config.ValueSink, c *characteristic.Bool) {

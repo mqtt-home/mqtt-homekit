@@ -71,6 +71,9 @@ type Accessory struct {
 	// Room groups accessories in the web UI. HomeKit room assignment is
 	// controller-side data (done in the Home app) and cannot be set by a bridge.
 	Room string `json:"room,omitempty"`
+	// Buttons is the number of physical buttons on a "button" accessory
+	// (stateless programmable switch). Defaults to 1.
+	Buttons int `json:"buttons,omitempty"`
 	// Topic is the default state/command topic used by a characteristic when it
 	// has no explicit entry in Get/Set.
 	Topic string `json:"topic,omitempty"`

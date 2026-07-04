@@ -114,6 +114,7 @@ pprof:
 | `lightbulb` | Lightbulb | `on`, optional `brightness` (0–100) |
 | `window_covering` (`blind`, `shade`) | Window covering | `position` (0–100), optional `tilt` (−90–90°) |
 | `thermostat` (`radiator`) | Thermostat | `current_temperature`, `target_temperature`, optional `mode` (`off`/`heat`/`cool`/`auto`) |
+| `button` | Stateless programmable switch | `single`/`double`/`long` event sources; the extracted value is the button index (`buttons: N` for multi-button devices) |
 
 Every accessory type additionally supports an optional `battery`
 characteristic (0–100). It adds a HomeKit battery service (low-battery status
