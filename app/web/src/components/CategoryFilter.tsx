@@ -1,9 +1,9 @@
 import type { ComponentType } from 'react';
-import { LayoutGrid, Gauge, Power, Lightbulb, Blinds, ThermometerSun, Shield } from 'lucide-react';
+import { LayoutGrid, Gauge, Power, Plug, Lightbulb, Blinds, ThermometerSun, Shield } from 'lucide-react';
 import type { Device } from '@/types/homekit';
 import { cn } from '@/lib/utils';
 
-export type CategoryKey = 'all' | 'sensors' | 'switches' | 'lights' | 'covers' | 'climate' | 'security';
+export type CategoryKey = 'all' | 'sensors' | 'switches' | 'outlets' | 'lights' | 'covers' | 'climate' | 'security';
 
 interface Category {
   key: CategoryKey;
@@ -15,7 +15,11 @@ interface Category {
 const CATEGORIES: Category[] = [
   { key: 'all', label: 'All', icon: LayoutGrid, kinds: [] },
   { key: 'sensors', label: 'Sensors', icon: Gauge, kinds: ['temperature', 'humidity', 'temperature_humidity', 'contact', 'motion', 'occupancy', 'leak', 'smoke', 'co', 'co2', 'air_quality', 'light'] },
-  { key: 'switches', label: 'Switches', icon: Power, kinds: ['switch', 'outlet', 'button', 'valve'] },
+  { key: 'switches', label: 'Switches', icon: Power, kinds: ['switch', 'button', 'valve'] },
+  // Outlets are their own category rather than part of Switches: HomeKit treats
+  // them as a distinct service, and a socket is a different thing to reach for
+  // than a rule toggle. The chip only appears when an outlet exists.
+  { key: 'outlets', label: 'Outlets', icon: Plug, kinds: ['outlet'] },
   { key: 'lights', label: 'Lights', icon: Lightbulb, kinds: ['lightbulb'] },
   { key: 'covers', label: 'Covers', icon: Blinds, kinds: ['window_covering', 'blind', 'shade', 'door', 'window', 'garage_door'] },
   { key: 'climate', label: 'Climate', icon: ThermometerSun, kinds: ['thermostat', 'radiator', 'fan'] },
