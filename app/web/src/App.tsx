@@ -15,6 +15,9 @@ export function App() {
   const [devices, setDevices] = useState<Device[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [category, setCategory] = useState<CategoryKey>('all');
+  // Pairing code stays hidden until asked for, so it isn't on screen every
+  // time the dashboard is opened.
+  const [showPairing, setShowPairing] = useState(false);
   const { devices: liveStates, identify, isConnected, error, reconnect } = useSSE();
   const { theme, toggleTheme } = useTheme();
 
@@ -69,6 +72,17 @@ export function App() {
             />
           </div>
           <div className="flex items-center gap-1 shrink-0">
+            {info && (
+              <button
+                onClick={() => setShowPairing(v => !v)}
+                className={cn('p-2 rounded-lg hover:bg-accent transition-colors', showPairing && 'bg-accent')}
+                aria-label={showPairing ? 'Hide pairing code' : 'Show pairing code'}
+                aria-pressed={showPairing}
+                title={showPairing ? 'Hide pairing code' : 'Show pairing code'}
+              >
+                <KeyRound className="h-5 w-5 text-foreground" />
+              </button>
+            )}
             <button onClick={load} className="p-2 rounded-lg hover:bg-accent transition-colors" aria-label="Refresh" title="Refresh">
               <RefreshCw className="h-5 w-5 text-foreground" />
             </button>
@@ -91,7 +105,7 @@ export function App() {
         )}
 
         {/* Pairing panel */}
-        {info && (
+        {info && showPairing && (
           <div className="mb-6 bg-card rounded-xl border border-border p-4 flex flex-col sm:flex-row items-center gap-5">
             <img
               src={`${API_BASE}/qr`}
