@@ -10,7 +10,7 @@ export default defineConfig({
   base: './',
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "./src"),
+      "@": path.resolve(import.meta.dirname, "./src"),
     },
   },
   build: {
@@ -18,8 +18,8 @@ export default defineConfig({
     emptyOutDir: true,
     rollupOptions: {
       input: {
-        main: path.resolve(__dirname, 'index.html'),
-        showcase: path.resolve(__dirname, 'showcase.html'),
+        main: path.resolve(import.meta.dirname, 'index.html'),
+        showcase: path.resolve(import.meta.dirname, 'showcase.html'),
       },
     },
   },
