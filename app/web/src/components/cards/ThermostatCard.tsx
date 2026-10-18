@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { ThermometerSun, Minus, Plus } from 'lucide-react';
 import type { Device } from '@/types/homekit';
 import { useDeviceControl } from '@/hooks/useDeviceControl';
-import { num, fmtTemp } from '@/lib/format';
+import { num } from '@/lib/format';
+import { useI18n } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { CardShell } from './CardShell';
 
@@ -12,15 +13,12 @@ const STEP = 0.5;
 // Rapid +/- taps are aggregated into a single command after this pause.
 const COMMIT_DELAY_MS = 600;
 
-const MODES = [
-  { value: 'off', label: 'Off' },
-  { value: 'heat', label: 'Heat' },
-  { value: 'auto', label: 'Auto' },
-];
+const MODES = ['off', 'heat', 'auto'];
 
 // Thermostat: shows current temperature, adjusts the target with a stepper
 // and switches the heating mode (off / heat / auto) when the device has one.
 export function ThermostatCard({ device }: { device: Device }) {
+  const { t, tx, temp } = useI18n();
   const { state, can, set } = useDeviceControl(device);
   const current = num(state.current_temperature);
   const target = num(state.target_temperature);
@@ -56,55 +54,33 @@ export function ThermostatCard({ device }: { device: Device }) {
     <CardShell
       device={device}
       icon={ThermometerSun}
-      iconClass={off ? 'text-muted-foreground' : 'text-rose-500'}
-      right={<span className="text-2xl font-semibold tabular-nums">{fmtTemp(current)}</span>}
+      tone={off ? 'idle' : 'accent'}
+      right={<span className="val">{temp(current)}</span>}
     >
       {hasControls && (
         <div className="space-y-3">
           {can('mode') && (
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-muted-foreground">Mode</span>
-              <div className="flex rounded-lg bg-muted p-0.5">
+            <div className="flex items-center justify-between gap-3">
+              <span className="lbl">{t('mode')}</span>
+              <div className="seg wide" role="group" aria-label={t('mode')}>
                 {MODES.map(m => (
-                  <button
-                    key={m.value}
-                    type="button"
-                    onClick={() => set('mode', m.value)}
-                    className={cn(
-                      'px-3 py-1 text-sm font-medium rounded-md transition-colors',
-                      mode === m.value
-                        ? 'bg-card text-foreground shadow-sm'
-                        : 'text-muted-foreground hover:text-foreground',
-                    )}
-                  >
-                    {m.label}
+                  <button key={m} type="button" aria-pressed={mode === m} onClick={() => set('mode', m)}>
+                    {tx(`mode.${m}`, m)}
                   </button>
                 ))}
               </div>
             </div>
           )}
           {can('target_temperature') && (
-            <div className={cn('flex items-center justify-between', off && 'opacity-50')}>
-              <span className="text-xs text-muted-foreground">Target</span>
+            <div className={cn('flex items-center justify-between gap-3', off && 'opacity-50')}>
+              <span className="lbl">{t('target')}</span>
               <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => step(-STEP)}
-                  className="h-8 w-8 flex items-center justify-center rounded-lg bg-foreground/10 hover:bg-foreground/20 text-foreground transition-colors"
-                  aria-label="Decrease target temperature"
-                >
-                  <Minus className="h-4 w-4" />
+                <button type="button" className="btn sq" onClick={() => step(-STEP)} aria-label={t('target.down')}>
+                  <Minus />
                 </button>
-                <span className="text-lg font-semibold tabular-nums w-20 text-center">
-                  {draft === undefined ? '—' : `${draft.toFixed(1)} °C`}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => step(STEP)}
-                  className="h-8 w-8 flex items-center justify-center rounded-lg bg-foreground/10 hover:bg-foreground/20 text-foreground transition-colors"
-                  aria-label="Increase target temperature"
-                >
-                  <Plus className="h-4 w-4" />
+                <span className="num w-20 text-center text-lg font-semibold">{temp(draft)}</span>
+                <button type="button" className="btn sq" onClick={() => step(STEP)} aria-label={t('target.up')}>
+                  <Plus />
                 </button>
               </div>
             </div>

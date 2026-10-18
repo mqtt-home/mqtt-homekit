@@ -2,6 +2,8 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import type { Device } from '@/types/homekit';
 import { API_BASE } from '@/lib/api';
 
+export type SSEError = 'err.parse' | 'err.closed' | 'err.connection' | 'err.connect';
+
 export interface IdentifyEvent {
   name: string;
   room: string;
@@ -14,7 +16,8 @@ interface SSEHookReturn {
   // Last HomeKit identify request (pairing flow).
   identify: IdentifyEvent | null;
   isConnected: boolean;
-  error: string | null;
+  // i18n key of the last connection problem.
+  error: SSEError | null;
   reconnect: () => void;
 }
 
@@ -22,7 +25,7 @@ export function useSSE(): SSEHookReturn {
   const [devices, setDevices] = useState<Record<number, Device>>({});
   const [identify, setIdentify] = useState<IdentifyEvent | null>(null);
   const [isConnected, setIsConnected] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<SSEError | null>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -58,15 +61,15 @@ export function useSSE(): SSEHookReturn {
             setIdentify({ name: data.name, room: data.room ?? '', at: Date.now() });
           }
         } catch {
-          setError('Failed to parse server data');
+          setError('err.parse');
         }
       };
 
       eventSource.onerror = () => {
         setIsConnected(false);
         setError(eventSource.readyState === EventSource.CLOSED
-          ? 'Connection closed by server'
-          : 'Connection error');
+          ? 'err.closed'
+          : 'err.connection');
 
         reconnectTimeoutRef.current = setTimeout(() => {
           if (eventSourceRef.current === eventSource) {
@@ -75,7 +78,7 @@ export function useSSE(): SSEHookReturn {
         }, 3000);
       };
     } catch {
-      setError('Failed to connect to server');
+      setError('err.connect');
     }
   }, [cleanup]);
 

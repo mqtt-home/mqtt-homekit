@@ -1,29 +1,28 @@
 import type { ComponentType } from 'react';
 import { LayoutGrid, Gauge, Power, Plug, Lightbulb, Blinds, ThermometerSun, Shield } from 'lucide-react';
 import type { Device } from '@/types/homekit';
-import { cn } from '@/lib/utils';
+import { useI18n, type Key } from '@/lib/i18n';
 
 export type CategoryKey = 'all' | 'sensors' | 'switches' | 'outlets' | 'lights' | 'covers' | 'climate' | 'security';
 
 interface Category {
   key: CategoryKey;
-  label: string;
   icon: ComponentType<{ className?: string }>;
   kinds: string[]; // empty = matches everything
 }
 
 const CATEGORIES: Category[] = [
-  { key: 'all', label: 'All', icon: LayoutGrid, kinds: [] },
-  { key: 'sensors', label: 'Sensors', icon: Gauge, kinds: ['temperature', 'humidity', 'temperature_humidity', 'contact', 'motion', 'occupancy', 'leak', 'smoke', 'co', 'co2', 'air_quality', 'light'] },
-  { key: 'switches', label: 'Switches', icon: Power, kinds: ['switch', 'button', 'valve'] },
+  { key: 'all', icon: LayoutGrid, kinds: [] },
+  { key: 'sensors', icon: Gauge, kinds: ['temperature', 'humidity', 'temperature_humidity', 'contact', 'motion', 'occupancy', 'leak', 'smoke', 'co', 'co2', 'air_quality', 'light'] },
+  { key: 'switches', icon: Power, kinds: ['switch', 'button', 'valve'] },
   // Outlets are their own category rather than part of Switches: HomeKit treats
   // them as a distinct service, and a socket is a different thing to reach for
   // than a rule toggle. The chip only appears when an outlet exists.
-  { key: 'outlets', label: 'Outlets', icon: Plug, kinds: ['outlet'] },
-  { key: 'lights', label: 'Lights', icon: Lightbulb, kinds: ['lightbulb'] },
-  { key: 'covers', label: 'Covers', icon: Blinds, kinds: ['window_covering', 'blind', 'shade', 'door', 'window', 'garage_door'] },
-  { key: 'climate', label: 'Climate', icon: ThermometerSun, kinds: ['thermostat', 'radiator', 'fan'] },
-  { key: 'security', label: 'Security', icon: Shield, kinds: ['lock', 'security_system', 'doorbell'] },
+  { key: 'outlets', icon: Plug, kinds: ['outlet'] },
+  { key: 'lights', icon: Lightbulb, kinds: ['lightbulb'] },
+  { key: 'covers', icon: Blinds, kinds: ['window_covering', 'blind', 'shade', 'door', 'window', 'garage_door'] },
+  { key: 'climate', icon: ThermometerSun, kinds: ['thermostat', 'radiator', 'fan'] },
+  { key: 'security', icon: Shield, kinds: ['lock', 'security_system', 'doorbell'] },
 ];
 
 export function matchesCategory(device: Device, key: CategoryKey): boolean {
@@ -41,6 +40,7 @@ interface Props {
 // Filter chips for the device categories; only categories that exist in the
 // current accessory list are shown, with counts.
 export function CategoryFilter({ devices, active, onChange }: Props) {
+  const { t } = useI18n();
   const visible = CATEGORIES.filter(
     c => c.key === 'all' || devices.some(d => c.kinds.includes(d.kind)),
   );
@@ -50,28 +50,20 @@ export function CategoryFilter({ devices, active, onChange }: Props) {
     c.key === 'all' ? devices.length : devices.filter(d => c.kinds.includes(d.kind)).length;
 
   return (
-    <div className="flex flex-wrap gap-2 mb-6" role="group" aria-label="Filter by device category">
+    <div className="chips" role="group" aria-label={t('filter')}>
       {visible.map(c => {
         const Icon = c.icon;
-        const isActive = active === c.key;
         return (
           <button
             key={c.key}
             type="button"
+            className="chip"
             onClick={() => onChange(c.key)}
-            aria-pressed={isActive}
-            className={cn(
-              'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors',
-              isActive
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-muted text-muted-foreground hover:text-foreground',
-            )}
+            aria-pressed={active === c.key}
           >
-            <Icon className="h-4 w-4" />
-            {c.label}
-            <span className={cn('text-xs tabular-nums', isActive ? 'opacity-80' : 'opacity-60')}>
-              {count(c)}
-            </span>
+            <Icon />
+            {t(`cat.${c.key}` as Key)}
+            <span className="n">{count(c)}</span>
           </button>
         );
       })}

@@ -1,12 +1,14 @@
 import { BatteryLow, BatteryMedium, BatteryFull, BatteryWarning } from 'lucide-react';
+import { useI18n } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 
 export const LOW_BATTERY = 20;
 
-export function batteryTone(level: number): string {
-  if (level <= 10) return 'text-red-500';
-  if (level <= LOW_BATTERY) return 'text-amber-500';
-  return 'text-muted-foreground';
+// Colour only for a battery that needs attention.
+export function batteryColor(level: number): string | undefined {
+  if (level <= 10) return 'var(--alert)';
+  if (level <= LOW_BATTERY) return 'var(--warn)';
+  return undefined;
 }
 
 export function BatteryIcon({ level, className }: { level: number; className?: string }) {
@@ -15,15 +17,16 @@ export function BatteryIcon({ level, className }: { level: number; className?: s
     : level <= 40 ? BatteryLow
     : level <= 80 ? BatteryMedium
     : BatteryFull;
-  return <Icon className={cn(className, batteryTone(level))} />;
+  return <Icon className={className} style={{ color: batteryColor(level) ?? 'var(--ink-3)' }} />;
 }
 
 // Compact inline battery indicator (icon + percent) used on device cards.
 export function BatteryBadge({ level }: { level: number }) {
+  const { pct } = useI18n();
   return (
-    <span className={cn('inline-flex items-center gap-0.5 tabular-nums', batteryTone(level))}>
-      <BatteryIcon level={level} className="h-3.5 w-3.5" />
-      {Math.round(level)} %
+    <span className={cn('num inline-flex shrink-0 items-center gap-0.5')} style={{ color: batteryColor(level) }}>
+      <BatteryIcon level={level} className="size-3.5" />
+      {pct(level)}
     </span>
   );
 }

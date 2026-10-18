@@ -10,6 +10,8 @@
     "isolatedModules": true,
     "composite": true,
     "emitDeclarationOnly": true,
+    "outDir": "./node_modules/.tmp/tsconfig.node",
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo",
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,

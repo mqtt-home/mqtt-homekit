@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { ThemeProvider } from '@/contexts/ThemeContext';
+import { I18nProvider } from '@/lib/i18n';
+import { followSystemTheme } from '@/lib/theme';
 import { Showcase } from './Showcase';
 import '@/index.css';
 
@@ -15,10 +16,12 @@ window.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
   return origFetch(input, init);
 };
 
+followSystemTheme();
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <ThemeProvider>
+    <I18nProvider fallback="en">
       <Showcase />
-    </ThemeProvider>
+    </I18nProvider>
   </React.StrictMode>,
 );

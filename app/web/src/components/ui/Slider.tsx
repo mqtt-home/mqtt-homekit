@@ -41,7 +41,7 @@ export function Slider({ value, min, max, step = 1, onCommit, label, format, dis
   return (
     <div className="flex items-center gap-3">
       {label && (
-        <span className="text-xs text-muted-foreground w-14 shrink-0">{label}</span>
+        <span className="lbl w-24 shrink-0 truncate">{label}</span>
       )}
       <input
         type="range"
@@ -59,11 +59,11 @@ export function Slider({ value, min, max, step = 1, onCommit, label, format, dis
         onBlur={commit}
         className="slider w-full disabled:opacity-50 disabled:cursor-not-allowed"
         style={{
-          background: `linear-gradient(to right, var(--color-primary) ${pct}%, var(--color-input) ${pct}%)`,
+          background: `linear-gradient(to right, var(--accent) ${pct}%, var(--sunken) ${pct}%)`,
         }}
         aria-label={label}
       />
-      <span className="text-sm font-medium tabular-nums text-foreground w-14 text-right shrink-0">
+      <span className="num w-14 shrink-0 text-right text-sm font-medium">
         {format ? format(local) : local}
       </span>
     </div>

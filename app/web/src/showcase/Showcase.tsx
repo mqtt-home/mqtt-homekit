@@ -1,5 +1,5 @@
-import { Sun, Moon, House } from 'lucide-react';
-import { useTheme } from '@/contexts/ThemeContext';
+import { House } from 'lucide-react';
+import { LangSwitch } from '@/lib/i18n';
 import { DeviceCard } from '@/components/DeviceCard';
 import { TYPES } from './data';
 
@@ -15,27 +15,23 @@ function GithubMark({ className }: { className?: string }) {
 // Static showcase of every accessory type, rendered with the real card
 // components. Built as its own page for GitHub Pages.
 export function Showcase() {
-  const { theme, toggleTheme } = useTheme();
-
   return (
-    <div className="min-h-screen bg-background p-4 md:p-8">
+    <div className="min-h-screen px-safe py-6 md:py-8">
       <div className="max-w-5xl mx-auto">
         <header className="flex items-center justify-between mb-2 gap-3">
           <div className="flex items-center gap-2">
-            <House className="h-6 w-6 text-primary" />
+            <span className="ico"><House /></span>
             <h1 className="text-2xl font-bold text-foreground">mqtt-homekit</h1>
           </div>
           <div className="flex items-center gap-1">
             <a
               href="https://github.com/mqtt-home/mqtt-homekit"
-              className="p-2 rounded-lg hover:bg-accent transition-colors"
+              className="icon-btn"
               aria-label="GitHub repository"
             >
               <GithubMark className="h-5 w-5 text-foreground" />
             </a>
-            <button onClick={toggleTheme} className="p-2 rounded-lg hover:bg-accent transition-colors" aria-label="Toggle theme">
-              {theme === 'dark' ? <Sun className="h-5 w-5 text-foreground" /> : <Moon className="h-5 w-5 text-foreground" />}
-            </button>
+            <LangSwitch />
           </div>
         </header>
 
@@ -52,7 +48,7 @@ export function Showcase() {
             <a
               key={t.kind}
               href={`#${t.kind}`}
-              className="px-3 py-1 rounded-full bg-muted text-sm text-muted-foreground hover:text-foreground transition-colors"
+              className="chip"
             >
               {t.title}
             </a>
@@ -77,7 +73,7 @@ export function Showcase() {
                           <td className="py-1.5 pr-3 text-muted-foreground">{desc}</td>
                           <td className="py-1.5 text-xs text-right">
                             {t.sets.includes(name.split(' ')[0]) ? (
-                              <span className="text-green-500 font-medium">read / write</span>
+                              <span className="font-medium" style={{ color: 'var(--ok)' }}>read / write</span>
                             ) : (
                               <span className="text-muted-foreground">read</span>
                             )}
@@ -87,7 +83,7 @@ export function Showcase() {
                     </tbody>
                   </table>
                 </div>
-                <pre className="bg-card border border-border rounded-xl p-4 text-xs leading-relaxed overflow-x-auto text-foreground">
+                <pre className="card p-4 text-xs leading-relaxed overflow-x-auto text-foreground">
                   <code>{t.yaml}</code>
                 </pre>
               </div>

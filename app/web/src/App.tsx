@@ -1,16 +1,16 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Sun, Moon, Wifi, WifiOff, House, RefreshCw, KeyRound } from 'lucide-react';
+import { House, KeyRound, RefreshCw, WifiOff } from 'lucide-react';
 import { useSSE } from '@/hooks/useSSE';
 import { fetchDevices, fetchInfo, API_BASE } from '@/lib/api';
-import { useTheme } from '@/contexts/ThemeContext';
+import { LangSwitch, useI18n } from '@/lib/i18n';
 import { DeviceCard } from '@/components/DeviceCard';
 import { CategoryFilter, matchesCategory, type CategoryKey } from '@/components/CategoryFilter';
 import { BatteryOverview } from '@/components/BatteryOverview';
 import { IdentifyModal } from '@/components/IdentifyModal';
-import { cn } from '@/lib/utils';
 import type { Device, Info } from '@/types/homekit';
 
 export function App() {
+  const { t } = useI18n();
   const [info, setInfo] = useState<Info | null>(null);
   const [devices, setDevices] = useState<Device[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -19,11 +19,10 @@ export function App() {
   // time the dashboard is opened.
   const [showPairing, setShowPairing] = useState(false);
   const { devices: liveStates, identify, isConnected, error, reconnect } = useSSE();
-  const { theme, toggleTheme } = useTheme();
 
   const load = () => {
     Promise.all([fetchInfo(), fetchDevices()])
-      .then(([i, d]) => { setInfo(i); setDevices(d); })
+      .then(([i, d]) => { setInfo(i); setDevices(d ?? []); })
       .catch(console.error)
       .finally(() => setLoaded(true));
   };
@@ -51,130 +50,138 @@ export function App() {
   }, [merged, category]);
 
   const healthy = !!info?.healthy && isConnected;
+  const pairingLabel = showPairing ? t('pairing.hide') : t('pairing.show');
 
   return (
-    <div className="min-h-screen bg-background p-4 md:p-8">
+    <div className="min-h-screen">
       <IdentifyModal identify={identify} />
-      <div className="max-w-6xl mx-auto">
-        {/* Header */}
-        <header className="flex items-center justify-between mb-6 gap-3">
-          <div className="flex items-center gap-2 min-w-0">
-            <House className="h-6 w-6 text-primary shrink-0" />
+      <header className="top-bar">
+        <div className="mx-auto flex max-w-6xl items-center gap-2 px-safe py-2.5">
+          <div className="flex min-w-0 flex-1 items-center gap-3">
+            <span className="ico">
+              <House />
+            </span>
             <div className="min-w-0">
-              <h1 className="text-2xl font-bold text-foreground leading-tight">MQTT HomeKit</h1>
-              {info?.bridge && (
-                <p className="text-xs text-muted-foreground truncate">{info.bridge}</p>
-              )}
+              <h1 className="truncate text-[17px] leading-tight font-semibold tracking-tight">{t('title')}</h1>
+              <div className="flex min-w-0 items-center gap-1.5 text-xs" style={{ color: 'var(--ink-3)' }}>
+                <span className={healthy ? 'dot' : 'dot bad'} title={healthy ? t('healthy') : t('unhealthy')} />
+                <span className="truncate">
+                  {!isConnected ? t('disconnected') : info?.bridge ?? (healthy ? t('healthy') : t('unhealthy'))}
+                </span>
+              </div>
             </div>
-            <span
-              className={cn('ml-2 h-2.5 w-2.5 rounded-full shrink-0', healthy ? 'bg-green-500' : 'bg-red-500')}
-              title={healthy ? 'Healthy' : 'Unhealthy'}
-            />
           </div>
-          <div className="flex items-center gap-1 shrink-0">
+          <div className="flex shrink-0 items-center">
             {info && (
               <button
+                type="button"
+                className="icon-btn"
                 onClick={() => setShowPairing(v => !v)}
-                className={cn('p-2 rounded-lg hover:bg-accent transition-colors', showPairing && 'bg-accent')}
-                aria-label={showPairing ? 'Hide pairing code' : 'Show pairing code'}
+                aria-label={pairingLabel}
                 aria-pressed={showPairing}
-                title={showPairing ? 'Hide pairing code' : 'Show pairing code'}
+                title={pairingLabel}
               >
-                <KeyRound className="h-5 w-5 text-foreground" />
+                <KeyRound />
               </button>
             )}
-            <button onClick={load} className="p-2 rounded-lg hover:bg-accent transition-colors" aria-label="Refresh" title="Refresh">
-              <RefreshCw className="h-5 w-5 text-foreground" />
-            </button>
-            <div className="p-2" title={isConnected ? 'Connected' : 'Disconnected'}>
-              {isConnected
-                ? <Wifi className="h-5 w-5 text-green-500" />
-                : <WifiOff className="h-5 w-5 text-red-500 cursor-pointer" onClick={reconnect} />}
-            </div>
-            <button onClick={toggleTheme} className="p-2 rounded-lg hover:bg-accent transition-colors" aria-label="Toggle theme">
-              {theme === 'dark' ? <Sun className="h-5 w-5 text-foreground" /> : <Moon className="h-5 w-5 text-foreground" />}
-            </button>
+            {!isConnected ? (
+              <button type="button" className="icon-btn" onClick={reconnect} aria-label={t('retry')} title={t('retry')}>
+                <WifiOff style={{ color: 'var(--alert)' }} />
+              </button>
+            ) : (
+              <button type="button" className="icon-btn" onClick={load} aria-label={t('refresh')} title={t('refresh')}>
+                <RefreshCw />
+              </button>
+            )}
           </div>
-        </header>
+          <LangSwitch />
+        </div>
+      </header>
 
+      <main className="mx-auto max-w-6xl space-y-5 px-safe pt-5 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
         {error && (
-          <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-500 text-sm">
-            {error}
-            <button onClick={reconnect} className="ml-2 underline hover:no-underline">Retry</button>
+          <div className="alert-banner">
+            <span className="ico sm"><WifiOff /></span>
+            <div className="t min-w-0 flex-1">{t(error)}</div>
+            <button type="button" className="btn" onClick={reconnect}>{t('retry')}</button>
           </div>
         )}
 
         {/* Pairing panel */}
         {info && showPairing && (
-          <div className="mb-6 bg-card rounded-xl border border-border p-4 flex flex-col sm:flex-row items-center gap-5">
+          <div className="card flex flex-col items-center gap-5 p-5 sm:flex-row">
             <img
               src={`${API_BASE}/qr`}
-              alt="HomeKit pairing QR code"
-              className="h-40 w-40 rounded-lg bg-white p-2 shrink-0"
+              alt={t('pairing.qr')}
+              className="size-40 shrink-0 rounded-xl bg-white p-2"
+              style={{ boxShadow: 'var(--elevation-1)', border: '1px solid var(--line)' }}
             />
-            <div className="flex flex-col items-center sm:items-start gap-2 text-center sm:text-left">
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <KeyRound className="h-4 w-4" />
-                <span className="text-sm">Scan or enter to pair in Apple Home</span>
+            <div className="flex flex-col items-center gap-2 text-center sm:items-start sm:text-left">
+              <div className="kicker flex items-center gap-2">
+                <KeyRound className="size-4" />
+                {t('pairing.title')}
               </div>
-              <div className="font-mono text-3xl font-bold tracking-[0.2em] text-foreground tabular-nums">
-                {info.pin}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {info.accessories} {info.accessories === 1 ? 'accessory' : 'accessories'}
+              <div className="pin">{info.pin}</div>
+              <p className="text-sm" style={{ color: 'var(--ink-2)' }}>{t('pairing.hint')}</p>
+              <p className="text-xs" style={{ color: 'var(--ink-3)' }}>
+                {info.accessories === 1 ? t('pairing.count1') : t('pairing.count', { n: info.accessories })}
               </p>
             </div>
           </div>
         )}
 
-        {/* Battery overview */}
         {loaded && <BatteryOverview devices={merged} />}
 
-        {/* Category filter */}
         {loaded && merged.length > 0 && (
           <CategoryFilter devices={merged} active={category} onChange={setCategory} />
         )}
 
         {/* Accessory grid, grouped by room */}
         {!loaded ? (
-          <div className="text-muted-foreground text-center py-16">Loading accessories...</div>
+          <Empty text={t('loading')} />
         ) : merged.length === 0 ? (
-          <div className="text-muted-foreground text-center py-16">No accessories found.</div>
+          <Empty text={t('empty.all')} />
         ) : rooms.empty ? (
-          <div className="text-muted-foreground text-center py-16">No accessories in this category.</div>
+          <Empty text={t('empty.category')} />
         ) : (
-          <div className="space-y-8">
+          <div className="space-y-7 pt-1">
             {rooms.named.map(([room, devs]) => (
-              <section key={room}>
-                <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground mb-3">
-                  {room}
-                </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {devs.map(device => (
-                    <DeviceCard key={device.aid} device={device} />
-                  ))}
-                </div>
-              </section>
+              <Room key={room} title={room} devices={devs} />
             ))}
             {rooms.unassigned.length > 0 && (
-              <section>
-                {rooms.named.length > 0 && (
-                  <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground mb-3">
-                    Other
-                  </h2>
-                )}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {rooms.unassigned.map(device => (
-                    <DeviceCard key={device.aid} device={device} />
-                  ))}
-                </div>
-              </section>
+              <Room title={rooms.named.length > 0 ? t('room.other') : undefined} devices={rooms.unassigned} />
             )}
           </div>
         )}
 
-        <div className="mt-8 text-center text-xs text-muted-foreground">mqtt-homekit</div>
+        <div className="pt-4 text-center text-xs" style={{ color: 'var(--ink-4)' }}>mqtt-homekit</div>
+      </main>
+    </div>
+  );
+}
+
+function Room({ title, devices }: { title?: string; devices: Device[] }) {
+  return (
+    <section>
+      {title && (
+        <div className="sec-title">
+          <h2>{title}</h2>
+          <span className="r num">{devices.length}</span>
+        </div>
+      )}
+      <div className="grid grid-cols-1 items-start gap-3 md:grid-cols-2 lg:grid-cols-3">
+        {devices.map(device => (
+          <DeviceCard key={device.aid} device={device} />
+        ))}
       </div>
+    </section>
+  );
+}
+
+function Empty({ text }: { text: string }) {
+  return (
+    <div className="py-16 text-center" style={{ color: 'var(--ink-3)' }}>
+      {text}
     </div>
   );
 }
