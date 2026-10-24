@@ -1,25 +1,12 @@
-import { createContext, useCallback, useContext, useMemo, useState } from 'react'
+import { useMemo } from 'react'
+import { createI18n, LangSwitch as BaseLangSwitch, type I18n as BaseI18n } from '@mqtt-home/ui/i18n'
 
-export type Lang = 'de' | 'en'
-export const LANGS: Lang[] = ['de', 'en']
+export { LANGS, resolveText, type Lang, type Text } from '@mqtt-home/ui/i18n'
 
-const LANG_KEY = 'home.lang'
-
-// German is the house language; English stays one tap away. Per device.
-function initialLang(fallback: Lang): Lang {
-  try {
-    const v = localStorage.getItem(LANG_KEY)
-    if (v === 'de' || v === 'en') return v
-  } catch {
-    // storage blocked
-  }
-  return fallback
-}
-
+// German is the house language; English stays one tap away (per device).
 const dict = {
   de: {
     title: 'HomeKit',
-    language: 'Sprache',
     connected: 'Verbunden',
     disconnected: 'Keine Verbindung',
     healthy: 'Bridge erreichbar',
@@ -138,7 +125,6 @@ const dict = {
   },
   en: {
     title: 'HomeKit',
-    language: 'Language',
     connected: 'Connected',
     disconnected: 'Disconnected',
     healthy: 'Bridge reachable',
@@ -255,80 +241,48 @@ const dict = {
     'kind.doorbell': 'Doorbell',
     'kind.security_system': 'Security system',
   },
-} satisfies Record<Lang, Record<string, string>>
+}
 
 export type Key = keyof (typeof dict)['de']
 
-export interface I18n {
-  lang: Lang
-  locale: string
-  setLang: (l: Lang) => void
-  /** A UI string with {placeholders}. */
-  t: (key: Key, vars?: Record<string, string | number>) => string
+/** The house helper plus the HomeKit formatters. */
+export type I18n = Omit<BaseI18n<Key>, 'tx'> & {
   /** A string for a dynamic key (kind, mode) or the fallback when there is none. */
   tx: (key: string, fallback: string) => string
-  /** A number in the current locale (21,5 in German). */
-  num: (n: number, decimals?: number) => string
   /** "21,5 °C" or "—" for a missing value. */
   temp: (v: unknown) => string
   /** "48 %" or "—" for a missing value. */
   pct: (v: unknown) => string
 }
 
-const Ctx = createContext<I18n | null>(null)
+const house = createI18n(dict)
+// The static showcase page (GitHub Pages) starts in English.
+const showcase = createI18n(dict, { defaultLang: 'en' })
 
-export function I18nProvider({ children, fallback = 'de' }: { children: React.ReactNode; fallback?: Lang }) {
-  const [lang, setLangState] = useState<Lang>(() => initialLang(fallback))
+export const I18nProvider = house.I18nProvider
+export const ShowcaseI18nProvider = showcase.I18nProvider
 
-  const setLang = useCallback((l: Lang) => {
-    setLangState(l)
-    try {
-      localStorage.setItem(LANG_KEY, l)
-    } catch {
-      // convenience only
-    }
-  }, [])
-
-  const value = useMemo<I18n>(() => {
-    const locale = lang === 'de' ? 'de-DE' : 'en-GB'
-    document.documentElement.lang = lang
-    const fill = (s: string, vars?: Record<string, string | number>) =>
-      s.replace(/\{(\w+)\}/g, (_, k) => String(vars?.[k] ?? ''))
-    const t: I18n['t'] = (key, vars) => fill(dict[lang][key] ?? dict.en[key] ?? key, vars)
-    const tx: I18n['tx'] = (key, fallbackText) =>
-      key in dict[lang] ? dict[lang][key as Key] : fallbackText
-    const fmt = new Map<number, Intl.NumberFormat>()
-    const num: I18n['num'] = (n, decimals = 0) => {
-      let f = fmt.get(decimals)
-      if (!f) {
-        f = new Intl.NumberFormat(locale, { minimumFractionDigits: decimals, maximumFractionDigits: decimals })
-        fmt.set(decimals, f)
-      }
-      return f.format(n)
-    }
-    const temp: I18n['temp'] = (v) => (typeof v === 'number' ? `${num(v, 1)} °C` : '—')
-    const pct: I18n['pct'] = (v) => (typeof v === 'number' ? `${num(Math.round(v))} %` : '—')
-    return { lang, locale, setLang, t, tx, num, temp, pct }
-  }, [lang, setLang])
-
-  return <Ctx.Provider value={value}>{children}</Ctx.Provider>
+function useBase(): BaseI18n<Key> {
+  // Exactly one of the two providers wraps a page, so the hook order is stable.
+  try {
+    return house.useI18n()
+  } catch {
+    return showcase.useI18n()
+  }
 }
 
-export function useI18n() {
-  const v = useContext(Ctx)
-  if (!v) throw new Error('useI18n outside I18nProvider')
-  return v
+export function useI18n(): I18n {
+  const i = useBase()
+  return useMemo(() => {
+    const words = dict[i.lang] as Record<string, string>
+    const tx: I18n['tx'] = (key, fallbackText) => (key in words ? words[key] : fallbackText)
+    const temp: I18n['temp'] = (v) => (typeof v === 'number' ? `${i.num(v, 1)} °C` : '—')
+    const pct: I18n['pct'] = (v) => (typeof v === 'number' ? `${i.num(Math.round(v))} %` : '—')
+    return { ...i, tx, temp, pct }
+  }, [i])
 }
 
+/** The DE/EN switch of whichever provider wraps the page. */
 export function LangSwitch() {
-  const i = useI18n()
-  return (
-    <div className="seg" role="group" aria-label={i.t('language')}>
-      {LANGS.map((l) => (
-        <button key={l} type="button" aria-pressed={i.lang === l} onClick={() => i.setLang(l)}>
-          {l.toUpperCase()}
-        </button>
-      ))}
-    </div>
-  )
+  return <BaseLangSwitch i18n={useBase()} />
 }
