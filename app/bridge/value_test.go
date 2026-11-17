@@ -3,6 +3,8 @@ package bridge
 import (
 	"testing"
 
+	"github.com/brutella/hap/characteristic"
+
 	"github.com/mqtt-home/mqtt-homekit/config"
 )
 
@@ -93,5 +95,20 @@ func TestMatchesFilter(t *testing.T) {
 	multi := config.ValueSource{Match: map[string]string{"event": "short_release", "button": "2"}}
 	if matchesFilter(multi, release) {
 		t.Error("button 1 should not match button=2 condition")
+	}
+}
+
+func TestDoorStateValue(t *testing.T) {
+	for name, want := range map[string]int{
+		"open": characteristic.CurrentDoorStateOpen, "closed": characteristic.CurrentDoorStateClosed,
+		"opening": characteristic.CurrentDoorStateOpening, "Closing": characteristic.CurrentDoorStateClosing,
+		" stopped ": characteristic.CurrentDoorStateStopped,
+	} {
+		if got, ok := doorStateValue(name); !ok || got != want {
+			t.Errorf("doorStateValue(%q) = %d, %v; want %d", name, got, ok, want)
+		}
+	}
+	if _, ok := doorStateValue("ajar"); ok {
+		t.Error("unknown state must not map")
 	}
 }

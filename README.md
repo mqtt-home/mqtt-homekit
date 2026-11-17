@@ -123,7 +123,7 @@ pprof:
 | `light` | Light sensor | `lux` |
 | `fan` | Fan | `on`, optional `speed` (0–100) |
 | `lock` | Lock mechanism | `locked` |
-| `garage_door` | Garage door opener | `open`, optional `obstruction` |
+| `garage_door` | Garage door opener | `open` (boolean) or `state` (`open`\|`closed`\|`opening`\|`closing`\|`stopped`), `open` sink for commands, optional `obstruction` |
 | `door` / `window` | Door / window | `position` (0–100) |
 | `valve` | Valve | `on` |
 | `doorbell` | Doorbell | `single`/`double`/`long` ring sources |
