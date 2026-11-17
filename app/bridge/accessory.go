@@ -69,9 +69,9 @@ func (d *Device) Control(name string, value any) error {
 	return fn(value)
 }
 
-// lowBatteryThreshold is the level (percent) at or below which HomeKit's
-// low-battery status is raised.
-const lowBatteryThreshold = 20
+// defaultLowBatteryThreshold is the level (percent) at or below which HomeKit's
+// low-battery status is raised, unless the accessory sets lowBatteryThreshold.
+const defaultLowBatteryThreshold = 20
 
 // buildDevice constructs a HAP accessory of the configured type and wires its
 // characteristics to MQTT.
@@ -551,6 +551,10 @@ func (b *Bridge) buildDevice(acc config.Accessory) (*Device, error) {
 		bs := service.NewBatteryService()
 		d.a.AddS(bs.S)
 		bs.ChargingState.SetValue(characteristic.ChargingStateNotChargeable)
+		lowBatteryThreshold := defaultLowBatteryThreshold
+		if acc.LowBatteryThreshold > 0 {
+			lowBatteryThreshold = acc.LowBatteryThreshold
+		}
 		b.readInt(d, "battery", acc.Source("battery"), func(v int) {
 			bs.BatteryLevel.SetValue(v)
 			low := characteristic.StatusLowBatteryBatteryLevelNormal

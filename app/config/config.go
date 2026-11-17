@@ -74,6 +74,9 @@ type Accessory struct {
 	// Buttons is the number of physical buttons on a "button" accessory
 	// (stateless programmable switch). Defaults to 1.
 	Buttons int `json:"buttons,omitempty"`
+	// LowBatteryThreshold is the battery level (percent) at or below which
+	// HomeKit's low-battery status is raised. Defaults to 20 when unset.
+	LowBatteryThreshold int `json:"lowBatteryThreshold,omitempty"`
 	// Topic is the default state/command topic used by a characteristic when it
 	// has no explicit entry in Get/Set.
 	Topic string `json:"topic,omitempty"`
