@@ -369,25 +369,60 @@ func (b *Bridge) buildDevice(acc config.Accessory) (*Device, error) {
 		a := accessory.New(info, accessory.TypeGarageDoorOpener)
 		g := service.NewGarageDoorOpener()
 		a.AddS(g.S)
-		b.readBoolLabeled(d, "open", acc.Source("open"), "open", "closed", func(v bool) {
-			state := characteristic.CurrentDoorStateClosed
-			if v {
-				state = characteristic.CurrentDoorStateOpen
-			}
-			g.CurrentDoorState.SetValue(state)
-			g.TargetDoorState.SetValue(state)
-		})
-		if sink, ok := acc.Sink("open"); ok {
-			// HomeKit door states are inverted booleans: open = 0, closed = 1.
-			b.writeIntBool(d, "open", sink, g.TargetDoorState.Int,
-				characteristic.CurrentDoorStateOpen, characteristic.CurrentDoorStateClosed,
-				func(v bool) {
-					state := characteristic.CurrentDoorStateClosed
-					if v {
-						state = characteristic.CurrentDoorStateOpen
+		if src := acc.Source("state"); src.Topic != "" {
+			// The door publishes its own state (open, closed, opening, closing): the bridge only maps it to the
+			// HomeKit door states. Any timing (travel time, lost commands) belongs to whatever publishes the state.
+			b.subscribe(src.Topic, func(payload []byte) {
+				if !matchesFilter(src, payload) {
+					return
+				}
+				name := strings.ToLower(strings.TrimSpace(extract(payload, src.Path)))
+				cur, ok := doorStateValue(name)
+				if !ok {
+					return
+				}
+				g.CurrentDoorState.SetValue(cur)
+				if cur == characteristic.CurrentDoorStateOpen || cur == characteristic.CurrentDoorStateOpening {
+					g.TargetDoorState.SetValue(characteristic.TargetDoorStateOpen)
+				} else {
+					g.TargetDoorState.SetValue(characteristic.TargetDoorStateClosed)
+				}
+				d.record("state", name)
+				b.broadcast(d)
+			})
+			if sink, ok := acc.Sink("open"); ok {
+				command := func(open bool) { b.publish(sink.Topic, boolPayload(sink, open), sink.Retain) }
+				g.TargetDoorState.OnValueRemoteUpdate(func(v int) { command(v == characteristic.TargetDoorStateOpen) })
+				d.controls["open"] = func(raw any) error {
+					v, ok := raw.(bool)
+					if !ok {
+						return fmt.Errorf("open expects a boolean value")
 					}
-					g.CurrentDoorState.SetValue(state)
-				})
+					command(v)
+					return nil
+				}
+			}
+		} else {
+			b.readBoolLabeled(d, "open", acc.Source("open"), "open", "closed", func(v bool) {
+				state := characteristic.CurrentDoorStateClosed
+				if v {
+					state = characteristic.CurrentDoorStateOpen
+				}
+				g.CurrentDoorState.SetValue(state)
+				g.TargetDoorState.SetValue(state)
+			})
+			if sink, ok := acc.Sink("open"); ok {
+				// HomeKit door states are inverted booleans: open = 0, closed = 1.
+				b.writeIntBool(d, "open", sink, g.TargetDoorState.Int,
+					characteristic.CurrentDoorStateOpen, characteristic.CurrentDoorStateClosed,
+					func(v bool) {
+						state := characteristic.CurrentDoorStateClosed
+						if v {
+							state = characteristic.CurrentDoorStateOpen
+						}
+						g.CurrentDoorState.SetValue(state)
+					})
+			}
 		}
 		if hasChar(acc, "obstruction") {
 			b.readBoolLabeled(d, "obstruction", acc.Source("obstruction"), "obstructed", "clear", func(v bool) {
@@ -837,6 +872,23 @@ func boolToInt(v bool) int {
 }
 
 // securityStateValue maps a payload string to a HomeKit security-system state.
+// doorStateValue maps a door state name to the HomeKit current door state.
+func doorStateValue(s string) (int, bool) {
+	switch strings.ToLower(strings.TrimSpace(s)) {
+	case "open":
+		return characteristic.CurrentDoorStateOpen, true
+	case "closed":
+		return characteristic.CurrentDoorStateClosed, true
+	case "opening":
+		return characteristic.CurrentDoorStateOpening, true
+	case "closing":
+		return characteristic.CurrentDoorStateClosing, true
+	case "stopped":
+		return characteristic.CurrentDoorStateStopped, true
+	}
+	return 0, false
+}
+
 func securityStateValue(s string) (int, bool) {
 	switch strings.ToLower(strings.TrimSpace(s)) {
 	case "home", "stay":
