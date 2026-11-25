@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/brutella/hap/accessory"
 	"github.com/brutella/hap/characteristic"
@@ -141,6 +142,7 @@ func (b *Bridge) buildDevice(acc config.Accessory) (*Device, error) {
 		if sink, ok := acc.Sink("on"); ok {
 			b.writeBool(d, "on", sink, a.Switch.On.Bool)
 		}
+		b.autoOff(d, acc, a.Switch.On.Bool)
 		d.a = a.A
 
 	case "outlet":
@@ -150,6 +152,7 @@ func (b *Bridge) buildDevice(acc config.Accessory) (*Device, error) {
 		if sink, ok := acc.Sink("on"); ok {
 			b.writeBool(d, "on", sink, a.Outlet.On.Bool)
 		}
+		b.autoOff(d, acc, a.Outlet.On.Bool)
 		d.a = a.A
 
 	case "lightbulb":
@@ -664,6 +667,51 @@ func (b *Bridge) writeBool(d *Device, name string, sink config.ValueSink, c *cha
 		c.SetValue(v)
 		apply(v)
 		return nil
+	}
+}
+
+// autoOff switches an "on" characteristic off again after the accessory's
+// auto_off_seconds, however it was switched on (HomeKit, web UI or MQTT), and
+// publishes the off payload so MQTT consumers see the switch return.
+func (b *Bridge) autoOff(d *Device, acc config.Accessory, c *characteristic.Bool) {
+	if acc.AutoOffSeconds <= 0 {
+		return
+	}
+	sink, hasSink := acc.Sink("on")
+	t := newOffTimer(time.Duration(acc.AutoOffSeconds*float64(time.Second)), func() {
+		c.SetValue(false)
+		if hasSink {
+			b.publish(sink.Topic, boolPayload(sink, false), sink.Retain)
+		}
+		d.record("on", false)
+		b.broadcast(d)
+	})
+	c.OnValueUpdate(func(v, _ bool, _ *http.Request) { t.set(v) })
+}
+
+// offTimer runs off once, delay after the last time the value went on; going
+// off in between cancels it.
+type offTimer struct {
+	delay time.Duration
+	off   func()
+
+	mu    sync.Mutex
+	timer *time.Timer
+}
+
+func newOffTimer(delay time.Duration, off func()) *offTimer {
+	return &offTimer{delay: delay, off: off}
+}
+
+func (t *offTimer) set(on bool) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if t.timer != nil {
+		t.timer.Stop()
+		t.timer = nil
+	}
+	if on {
+		t.timer = time.AfterFunc(t.delay, t.off)
 	}
 }
 

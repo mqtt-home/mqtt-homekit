@@ -74,6 +74,11 @@ type Accessory struct {
 	// Buttons is the number of physical buttons on a "button" accessory
 	// (stateless programmable switch). Defaults to 1.
 	Buttons int `json:"buttons,omitempty"`
+	// AutoOffSeconds turns a switch or outlet off again this many seconds
+	// after it was switched on, from HomeKit, the web UI or MQTT, and
+	// publishes the off payload. Makes a switch a trigger: an automation only
+	// has to switch it on. 0 disables it.
+	AutoOffSeconds float64 `json:"auto_off_seconds,omitempty"`
 	// Topic is the default state/command topic used by a characteristic when it
 	// has no explicit entry in Get/Set.
 	Topic string `json:"topic,omitempty"`

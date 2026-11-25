@@ -181,6 +181,11 @@ Examples:
   "get": { "on": { "topic": "lamp/state", "on": "ON", "off": "OFF" } },
   "set": { "on": { "topic": "lamp/set",   "on": "ON", "off": "OFF" } } }
 
+// trigger: goes off by itself 5 s after it was switched on (HomeKit, web UI
+// or MQTT) and publishes "false", so an automation only has to switch it on
+{ "name": "Front Door Motion", "type": "switch",
+  "topic": "house/frontdoor/motion", "auto_off_seconds": 5 }
+
 // blind position via JSON command
 { "name": "Blind", "type": "window_covering",
   "get": { "position": { "topic": "blind/state", "path": "current_pos" } },
